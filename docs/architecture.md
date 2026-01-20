@@ -2,7 +2,9 @@
 
 ## Overview
 
-AgentOS is a microkernel for AI agents. It provides OS-level isolation, resource control, and fair scheduling for autonomous agents.
+AgentOS is a microkernel for AI agents. It provides OS-level isolation, resource control, and fair scheduling for autonomous agents. The system supports both local execution and cloud deployment through a relay server architecture.
+
+## Local Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -23,6 +25,35 @@ AgentOS is a microkernel for AI agents. It provides OS-level isolation, resource
    │ Agent 1 │          │ Agent 2 │          │ Agent 3 │
    │(Python) │          │(Python) │          │(Python) │
    └─────────┘          └─────────┘          └─────────┘
+```
+
+## Cloud/Fleet Architecture
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                         YOUR TERMINAL                             │
+│  $ agentos deploy aws    $ agentos status    $ agentos agent run │
+└───────────────────────────────┬──────────────────────────────────┘
+                                │ REST API
+                                ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                    RELAY SERVER (Cloud/Self-Hosted)               │
+│   ┌────────────┐    ┌────────────┐    ┌────────────┐             │
+│   │  REST API  │    │  WebSocket │    │   Fleet    │             │
+│   │ (CLI mgmt) │    │    Hub     │    │  Manager   │             │
+│   │  :8766     │    │   :8765    │    │            │             │
+│   └────────────┘    └────────────┘    └────────────┘             │
+│        │                   │                 │                    │
+│        └───────────────────┴─────────────────┘                    │
+└────────────────────────────┬─────────────────────────────────────┘
+                             │ WebSocket
+         ┌───────────────────┼───────────────────┐
+         ▼                   ▼                   ▼
+┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
+│  AWS EC2        │ │  GCP Compute    │ │  Docker Local   │
+│  AgentOS Kernel │ │  AgentOS Kernel │ │  AgentOS Kernel │
+│  + Tunnel       │ │  + Tunnel       │ │  + Tunnel       │
+└─────────────────┘ └─────────────────┘ └─────────────────┘
 ```
 
 ## Components
@@ -139,3 +170,101 @@ Agent A ──SYS_SEND──► Kernel Mailbox[B] ──SYS_RECV──► Agent 
 - Each agent has a message queue
 - Messages are JSON payloads
 - Supports: point-to-point, broadcast, name-based addressing
+
+## Relay Server (`relay/`)
+
+The relay server enables remote connectivity and fleet management.
+
+| File | Purpose |
+|------|---------|
+| `relay_server.py` | WebSocket hub for kernel connections + REST API host |
+| `auth.py` | Token validation, SHA-256 hashing |
+| `router.py` | Message routing between agents and kernels |
+| `api.py` | REST API endpoints for fleet/agent/token management |
+| `fleet.py` | Fleet manager with persistent machine registry |
+| `tokens.py` | Token persistence with secure storage |
+
+### Remote Agent Flow
+
+```
+Agent (CLI)
+    │
+    ▼ REST API (8766)
+Relay Server
+    │
+    ▼ WebSocket
+Tunnel Client (on kernel)
+    │
+    ▼ Unix Socket
+AgentOS Kernel
+    │
+    ▼ Execute syscall
+Response flows back
+```
+
+### Token Types
+
+| Type | Purpose | Permissions |
+|------|---------|-------------|
+| `machine` | Kernel registration | Connect, heartbeat, receive commands |
+| `agent` | Agent deployment | Target specific machine(s) |
+| `admin` | Fleet management | All operations |
+
+## CLI (`cli/`)
+
+Command-line interface for fleet management.
+
+| File | Purpose |
+|------|---------|
+| `agentos.py` | Main entry point with Click groups |
+| `config.py` | `~/.agentos/config.yaml` management |
+| `relay_api.py` | REST API client (sync/async) |
+| `commands/deploy.py` | Deploy to Docker/AWS/GCP |
+| `commands/status.py` | Fleet status display |
+| `commands/machines.py` | Machine management |
+| `commands/agent.py` | Agent execution |
+| `commands/tokens.py` | Token management |
+
+### Command Flow
+
+```
+$ agentos agent run script.py --machine m1
+    │
+    ▼ CLI parses command
+RelayAPIClient
+    │
+    ▼ POST /api/v1/agents/deploy
+Relay Server
+    │
+    ▼ WebSocket message
+Kernel (machine m1)
+    │
+    ▼ Execute agent
+Results streamed back
+```
+
+## Deployment (`deploy/`)
+
+Infrastructure for deploying AgentOS to various environments.
+
+| Directory | Purpose |
+|-----------|---------|
+| `docker/` | Dockerfile, docker-compose, entrypoint |
+| `terraform/aws/` | EC2, VPC, security groups, cloud-init |
+| `terraform/gcp/` | Compute Engine, firewall, cloud-init |
+| `systemd/` | Service files for kernel, tunnel, relay |
+
+### Deployment Flow
+
+```
+$ agentos deploy aws
+    │
+    ├─► terraform init && terraform apply
+    │       Creates EC2 + networking
+    │
+    └─► cloud-init executes
+            │
+            ├─► Install AgentOS
+            ├─► Start kernel (systemd)
+            └─► Start tunnel (connects to relay)
+```

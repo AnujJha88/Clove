@@ -1,0 +1,120 @@
+#cloud-config
+# AgentOS Kernel Cloud-Init Configuration for GCP
+#
+# This script installs and configures the AgentOS kernel on a fresh Ubuntu instance.
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - build-essential
+  - cmake
+  - git
+  - python3
+  - python3-pip
+  - libssl-dev
+  - pkg-config
+  - curl
+  - jq
+
+write_files:
+  # AgentOS service configuration
+  - path: /etc/agentos/config.env
+    permissions: '0600'
+    content: |
+      MACHINE_ID=${machine_id}
+      MACHINE_TOKEN=${machine_token}
+      RELAY_URL=${relay_url}
+      AGENTOS_DATA_DIR=/var/lib/agentos
+
+  # Systemd service file
+  - path: /etc/systemd/system/agentos-kernel.service
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=AgentOS Kernel
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      Type=simple
+      User=agentos
+      Group=agentos
+      EnvironmentFile=/etc/agentos/config.env
+      ExecStart=/opt/agentos/agentos_kernel
+      Restart=always
+      RestartSec=10
+      StandardOutput=journal
+      StandardError=journal
+
+      # Resource limits
+      MemoryMax=512M
+      CPUQuota=100%
+
+      # Security
+      NoNewPrivileges=yes
+      ProtectSystem=strict
+      ProtectHome=yes
+      PrivateTmp=yes
+      ReadWritePaths=/var/lib/agentos
+
+      [Install]
+      WantedBy=multi-user.target
+
+  # Tunnel client service
+  - path: /etc/systemd/system/agentos-tunnel.service
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=AgentOS Relay Tunnel
+      After=agentos-kernel.service
+      Requires=agentos-kernel.service
+
+      [Service]
+      Type=simple
+      User=agentos
+      Group=agentos
+      EnvironmentFile=/etc/agentos/config.env
+      ExecStart=/usr/bin/python3 /opt/agentos/scripts/tunnel_client.py
+      Restart=always
+      RestartSec=10
+      StandardOutput=journal
+      StandardError=journal
+
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  # Create agentos user
+  - useradd -r -m -s /bin/bash agentos
+
+  # Create directories
+  - mkdir -p /opt/agentos /var/lib/agentos /etc/agentos
+  - chown -R agentos:agentos /opt/agentos /var/lib/agentos
+
+  # Install Python dependencies
+  - pip3 install websockets aiohttp python-dotenv pyyaml
+
+  # Clone and build AgentOS
+  - |
+    cd /tmp
+    git clone https://github.com/agentos-project/agentos.git
+    cd agentos
+    mkdir build && cd build
+    cmake ..
+    cmake --build . --config Release
+    cp agentos_kernel /opt/agentos/
+    cp -r ../agents/python_sdk /opt/agentos/
+    cp -r ../scripts /opt/agentos/
+    chown -R agentos:agentos /opt/agentos
+
+  # Enable and start services
+  - systemctl daemon-reload
+  - systemctl enable agentos-kernel
+  - systemctl enable agentos-tunnel
+  - systemctl start agentos-kernel
+  - sleep 5
+  - systemctl start agentos-tunnel
+
+  # Log completion
+  - echo "AgentOS kernel installation complete" >> /var/log/cloud-init-output.log

@@ -1,0 +1,57 @@
+# Git
+.git
+.gitignore
+
+# Build artifacts
+build/
+*.o
+*.a
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+venv/
+.venv/
+env/
+
+# Node (if any)
+node_modules/
+
+# Tests
+tests/
+*.test.*
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Terraform state
+*.tfstate
+*.tfstate.backup
+.terraform/
+
+# Environment files
+.env
+.env.local
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+
+# vcpkg downloaded packages (use container's vcpkg)
+vcpkg_installed/

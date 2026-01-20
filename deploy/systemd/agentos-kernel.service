@@ -1,0 +1,61 @@
+[Unit]
+Description=AgentOS Kernel
+Documentation=https://github.com/agentos-project/agentos
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=agentos
+Group=agentos
+
+# Environment configuration
+EnvironmentFile=-/etc/agentos/config.env
+
+# Working directory
+WorkingDirectory=/opt/agentos
+
+# Main executable
+ExecStart=/opt/agentos/agentos_kernel
+
+# Restart configuration
+Restart=always
+RestartSec=10
+WatchdogSec=60
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=agentos-kernel
+
+# Resource limits
+MemoryMax=512M
+CPUQuota=100%
+TasksMax=100
+
+# Security hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+
+# Allow write access to specific directories
+ReadWritePaths=/var/lib/agentos
+ReadWritePaths=/tmp/agentos.sock
+
+# Capabilities
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+[Install]
+WantedBy=multi-user.target

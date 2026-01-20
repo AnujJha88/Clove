@@ -1,0 +1,53 @@
+[Unit]
+Description=AgentOS Relay Tunnel Client
+Documentation=https://github.com/agentos-project/agentos
+After=agentos-kernel.service
+Requires=agentos-kernel.service
+BindsTo=agentos-kernel.service
+
+[Service]
+Type=simple
+User=agentos
+Group=agentos
+
+# Environment configuration
+EnvironmentFile=-/etc/agentos/config.env
+
+# Working directory
+WorkingDirectory=/opt/agentos
+
+# Main executable
+ExecStart=/usr/bin/python3 /opt/agentos/scripts/tunnel_client.py
+
+# Restart configuration
+Restart=always
+RestartSec=5
+WatchdogSec=120
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=agentos-tunnel
+
+# Resource limits
+MemoryMax=128M
+CPUQuota=25%
+
+# Security hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=yes
+RestrictRealtime=yes
+
+# Allow read access to kernel socket
+ReadWritePaths=/tmp/agentos.sock
+
+[Install]
+WantedBy=multi-user.target

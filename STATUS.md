@@ -4,13 +4,68 @@
 
 ---
 
-## Current Phase: Phase 6 - Benchmark Framework **NEXT**
+## Current Phase: Phase 9 - World Simulation **NEXT**
 
-**Goal:** Standardized task suites, metrics collection, and comparison tools for agent evaluation.
+**Goal:** Create isolated, configurable environments ("worlds") where agents can operate without affecting real systems. Essential for training, testing, and safe experimentation.
 
 ---
 
 ## Recent Additions (2026-01-20)
+
+### Phase 8: Cloud Deployment System **COMPLETE**
+
+One-command deploy AgentOS to any cloud or local Docker, manage a fleet of kernels from your terminal.
+
+**CLI Tool (`cli/`):**
+```bash
+$ agentos deploy docker --name dev-kernel
+$ agentos deploy aws --region us-east-1
+$ agentos deploy gcp --zone us-central1-a
+$ agentos status
+$ agentos agent run my_agent.py --machine docker-dev-kernel-xxx
+```
+
+**Components Implemented:**
+- `cli/agentos.py` - Main CLI entry point (Click framework)
+- `cli/config.py` - Configuration management (~/.agentos/config.yaml)
+- `cli/relay_api.py` - REST API client for relay server
+- `cli/commands/` - Deploy, status, machines, agent, tokens commands
+- `relay/api.py` - REST API endpoints for fleet management
+- `relay/fleet.py` - Fleet manager with persistence
+- `relay/tokens.py` - Token persistence and validation
+- `deploy/docker/` - Dockerfile, docker-compose.yml, entrypoint.sh
+- `deploy/terraform/aws/` - EC2 + networking Terraform module
+- `deploy/terraform/gcp/` - Compute Engine Terraform module
+- `deploy/systemd/` - Systemd service files
+- `agents/python_sdk/fleet_client.py` - Fleet management Python client
+
+**Architecture:**
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                         YOUR TERMINAL                             │
+│  $ agentos deploy aws    $ agentos status    $ agentos agent run │
+└───────────────────────────────┬──────────────────────────────────┘
+                                │
+                                ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                    RELAY SERVER (Cloud/Self-Hosted)               │
+│   ┌────────────┐    ┌────────────┐    ┌────────────┐             │
+│   │  REST API  │    │  WebSocket │    │   Fleet    │             │
+│   │ (CLI mgmt) │    │    Hub     │    │  Manager   │             │
+│   └────────────┘    └────────────┘    └────────────┘             │
+└────────────────────────────┬─────────────────────────────────────┘
+                             │
+         ┌───────────────────┼───────────────────┐
+         ▼                   ▼                   ▼
+┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
+│  AWS EC2        │ │  GCP Compute    │ │  Docker Local   │
+│  AgentOS Kernel │ │  AgentOS Kernel │ │  AgentOS Kernel │
+└─────────────────┘ └─────────────────┘ └─────────────────┘
+```
+
+---
+
+## Previous Additions (2026-01-20)
 
 ### Events (Pub/Sub) System **NEW**
 
@@ -542,8 +597,8 @@ AGENTOS/
 │   │   ├── reactor.cpp           # epoll implementation
 │   │   ├── llm_client.hpp        # LLM subprocess manager
 │   │   ├── llm_client.cpp        # Subprocess IPC, .env loading
-│   │   ├── permissions.hpp       # Permission system [NEW]
-│   │   └── permissions.cpp       # Permission validation [NEW]
+│   │   ├── permissions.hpp       # Permission system
+│   │   └── permissions.cpp       # Permission validation
 │   ├── ipc/
 │   │   ├── protocol.hpp          # Binary protocol + opcodes
 │   │   ├── socket_server.hpp     # Server class
@@ -559,42 +614,75 @@ AGENTOS/
 ├── agents/
 │   ├── python_sdk/
 │   │   ├── agentos.py            # Client SDK (multimodal think())
-│   │   └── agentic.py            # [NEW] Agentic loop framework
-│   ├── dashboard/                 # [NEW] Web monitoring dashboard
+│   │   ├── agentic.py            # Agentic loop framework
+│   │   ├── remote_client.py      # Remote agent client
+│   │   └── fleet_client.py       # [NEW] Fleet management client
+│   ├── dashboard/                # Web monitoring dashboard
 │   │   ├── index.html            # Single-page dashboard app
 │   │   ├── ws_proxy.py           # WebSocket proxy bridge
-│   │   ├── README.md             # Dashboard documentation
-│   │   └── QUICKSTART.md         # Quick start guide
+│   │   └── README.md             # Dashboard documentation
 │   ├── llm_service/
 │   │   ├── llm_service.py        # LLM subprocess (google-genai)
 │   │   └── requirements.txt      # Python dependencies
-│   ├── mcp/                      # [NEW] MCP Server for Claude Desktop
+│   ├── mcp/                      # MCP Server for Claude Desktop
 │   │   ├── mcp_server.py         # MCP protocol server
 │   │   └── README.md             # Installation instructions
-│   ├── adapters/                 # [NEW] Framework Adapters
-│   │   ├── __init__.py           # Package exports
+│   ├── adapters/                 # Framework Adapters
 │   │   ├── langchain_adapter.py  # LangChain integration
 │   │   ├── crewai_adapter.py     # CrewAI integration
-│   │   ├── autogen_adapter.py    # AutoGen integration
-│   │   └── README.md             # Adapter documentation
+│   │   └── autogen_adapter.py    # AutoGen integration
 │   └── examples/
 │       ├── hello_agent.py        # Echo test
 │       ├── thinking_agent.py     # LLM interaction
-│       ├── worker_agent.py       # Spawnable worker
-│       ├── spawn_test.py         # Spawn test script
-│       ├── fault_isolation_demo.py  # OS-level fault isolation
-│       ├── cpu_hog_agent.py      # CPU stress test
-│       ├── memory_hog_agent.py   # Memory stress test
-│       ├── healthy_agent.py      # Well-behaved agent
-│       ├── ipc_demo.py           # Inter-agent communication demo
-│       ├── coding_agent.py       # Code generation agent
-│       └── fibonacci_orchestrator.py # Multi-agent orchestration
+│       ├── echo_test.py          # [NEW] Deployment test agent
+│       ├── health_check.py       # [NEW] Health check agent
+│       └── ...                   # Other demo agents
+├── cli/                          # [NEW] AgentOS CLI Tool
+│   ├── agentos.py                # Main CLI entry point
+│   ├── config.py                 # Config management (~/.agentos/)
+│   ├── relay_api.py              # REST API client
+│   ├── setup.py                  # CLI installation script
+│   ├── requirements.txt          # CLI dependencies
+│   └── commands/
+│       ├── deploy.py             # deploy docker|aws|gcp
+│       ├── status.py             # fleet status
+│       ├── machines.py           # machines list|remove|ssh|logs
+│       ├── agent.py              # agent run|list|stop|create
+│       └── tokens.py             # tokens create|list|revoke
+├── relay/                        # Relay Server
+│   ├── relay_server.py           # WebSocket relay + REST API
+│   ├── api.py                    # [NEW] REST API endpoints
+│   ├── fleet.py                  # [NEW] Fleet management
+│   ├── tokens.py                 # [NEW] Token persistence
+│   ├── auth.py                   # Authentication
+│   ├── router.py                 # Message routing
+│   └── requirements.txt          # Server dependencies
+├── deploy/                       # [NEW] Deployment Assets
+│   ├── docker/
+│   │   ├── Dockerfile            # AgentOS kernel container
+│   │   ├── docker-compose.yml    # Full stack deployment
+│   │   ├── entrypoint.sh         # Container startup
+│   │   └── .dockerignore
+│   ├── terraform/
+│   │   ├── aws/                  # AWS EC2 module
+│   │   │   ├── main.tf
+│   │   │   ├── variables.tf
+│   │   │   ├── outputs.tf
+│   │   │   └── cloud-init.yaml
+│   │   └── gcp/                  # GCP Compute module
+│   │       ├── main.tf
+│   │       ├── variables.tf
+│   │       ├── outputs.tf
+│   │       └── cloud-init.yaml
+│   └── systemd/
+│       ├── agentos-kernel.service
+│       ├── agentos-tunnel.service
+│       └── agentos-relay.service
 ├── build/
 │   └── agentos_kernel
 ├── CMakeLists.txt
 ├── vcpkg.json
-├── .env.example                  # Environment template
-├── .env                          # Local config (not in git)
+├── .env.example
 ├── STATUS.md
 └── README.md
 ```
@@ -611,9 +699,12 @@ AGENTOS/
 | Phase 3 | LLM Integration (Gemini) | **COMPLETE** |
 | Phase 4 | OS-Level Demonstrations | **COMPLETE** |
 | Phase 5 | Universal Agent Runtime | **COMPLETE** |
-| Phase 6 | Benchmark Framework | **NEXT** |
-| Phase 7 | World Simulation | **FUTURE** |
-| Phase 8 | Agent Gymnasium | **VISION** |
+| Phase 6 | Remote Connectivity | **COMPLETE** |
+| Phase 7 | Relay Server | **COMPLETE** |
+| Phase 8 | Cloud Deployment System | **COMPLETE** |
+| Phase 9 | World Simulation | **NEXT** |
+| Phase 10 | Agent Gymnasium | **FUTURE** |
+| Phase 11 | Benchmark Framework | **FUTURE** |
 
 ---
 
@@ -1009,13 +1100,120 @@ Two compelling narratives for AgentOS:
 - **Phase 5 complete:** Permission system, host access syscalls, MCP server, and framework adapters all working
 - **Web Dashboard:** Real-time browser-based monitoring with WebSocket proxy
 - **Agentic Loop:** Claude Code-style autonomous agent framework for iterative task execution
-- **Next focus:** Benchmark framework for standardized agent evaluation
+- **Phase 6-7 complete:** Remote connectivity via relay server, tunnel client
+- **Phase 8 complete:** Cloud Deployment System with CLI tool, Docker/AWS/GCP support, fleet management
+- **Next focus:** World Simulation (Phase 9) - virtual environments for safe agent testing
+
+---
+
+## Phase 8: Cloud Deployment System **COMPLETE**
+
+### CLI Commands Implemented
+
+| Command | Description |
+|---------|-------------|
+| `agentos deploy docker [--name NAME]` | Deploy kernel to Docker |
+| `agentos deploy aws [--region] [--instance-type]` | Deploy to AWS EC2 |
+| `agentos deploy gcp [--zone] [--machine-type]` | Deploy to GCP Compute |
+| `agentos status` | Show fleet status |
+| `agentos machines list` | List all machines |
+| `agentos machines show <id>` | Show machine details |
+| `agentos machines remove <id>` | Remove machine |
+| `agentos machines ssh <id>` | SSH into machine |
+| `agentos machines logs <id>` | View machine logs |
+| `agentos agent run <script> --machine <id>` | Run agent on machine |
+| `agentos agent list` | List running agents |
+| `agentos agent stop <id> --machine <id>` | Stop agent |
+| `agentos agent create <name> [--template]` | Create agent from template |
+| `agentos tokens create machine` | Create machine token |
+| `agentos tokens create agent` | Create agent token |
+| `agentos tokens list` | List tokens |
+| `agentos tokens revoke <id>` | Revoke token |
+| `agentos config` | Show configuration |
+| `agentos config-set <key> <value>` | Set configuration |
+
+### Relay Server REST API
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/status` | GET | Server status |
+| `/api/v1/health` | GET | Health check |
+| `/api/v1/machines` | GET | List machines |
+| `/api/v1/machines/{id}` | GET | Get machine |
+| `/api/v1/machines` | POST | Register machine |
+| `/api/v1/machines/{id}` | DELETE | Remove machine |
+| `/api/v1/agents` | GET | List agents |
+| `/api/v1/agents/deploy` | POST | Deploy agent |
+| `/api/v1/agents/{id}/stop` | POST | Stop agent |
+| `/api/v1/tokens` | GET | List tokens |
+| `/api/v1/tokens/machine` | POST | Create machine token |
+| `/api/v1/tokens/agent` | POST | Create agent token |
+| `/api/v1/tokens/{id}` | DELETE | Revoke token |
+
+### Quick Start
+
+```bash
+# Install CLI
+pip install -e cli/
+
+# Deploy locally with Docker
+agentos deploy docker --name my-kernel
+
+# Check status
+agentos status
+
+# Run an agent
+agentos agent run agents/examples/echo_test.py --machine docker-my-kernel-xxx
+
+# Or deploy to cloud
+agentos deploy aws --region us-east-1 --instance-type t3.small
+```
 
 ---
 
 ## Future Directions
 
-### Phase 6: Benchmark Framework
+### Phase 6: World Simulation **NEXT**
+
+**Goal:** Create isolated, configurable environments ("worlds") where agents can operate without affecting real systems.
+
+**Capabilities:**
+- **Filesystem virtualization** - Mount custom directory trees, inject files, track modifications
+- **Network mocking** - Mock APIs, inject latency/failures, restrict connectivity
+- **Time manipulation** - Accelerate time for long-running tests, schedule events
+- **Event injection** - Trigger failures, load spikes, data corruption
+- **State snapshots** - Save/restore world state for reproducible testing
+
+**New Syscalls:**
+| Syscall | Opcode | Description |
+|---------|--------|-------------|
+| `SYS_WORLD_CREATE` | `0xA0` | Create a new world from config |
+| `SYS_WORLD_DESTROY` | `0xA1` | Destroy a world and cleanup |
+| `SYS_WORLD_LIST` | `0xA2` | List active worlds |
+| `SYS_WORLD_JOIN` | `0xA3` | Join an agent to a world |
+| `SYS_WORLD_LEAVE` | `0xA4` | Remove agent from world |
+| `SYS_WORLD_EVENT` | `0xA5` | Inject event into world |
+| `SYS_WORLD_STATE` | `0xA6` | Get world state/metrics |
+| `SYS_WORLD_SNAPSHOT` | `0xA7` | Save world state |
+| `SYS_WORLD_RESTORE` | `0xA8` | Restore from snapshot |
+
+### Phase 7: Remote Connectivity
+
+**Goal:** Cloud agents can connect to your local kernel securely via relay server.
+
+**Architecture:** Kernel connects outbound to relay server (works behind NAT). Cloud agents also connect to relay. Same syscall protocol works over WebSocket.
+
+### Phase 8: Agent Gymnasium
+
+**Vision:** Library of pre-built worlds for training and evaluating autonomous agents.
+
+**Use cases:**
+- Test SRE agents against simulated outages
+- Evaluate coding agents in realistic project environments
+- Benchmark multi-agent collaboration in shared worlds
+- Train agents on edge cases without risking production systems
+
+### Phase 9: Benchmark Framework
 
 **Goal:** Standardized task suites, metrics collection, and comparison tools for agent evaluation.
 
@@ -1025,24 +1223,3 @@ Two compelling narratives for AgentOS:
 - **Reproducible** - Controlled environment ensures consistent results
 - **Real metrics** - Kernel-level resource tracking (not just token counts)
 - **Failure handling** - Measure how agents recover from crashes/timeouts
-
-### Phase 7: World Simulation
-
-**Goal:** Filesystem virtualization, network mocking, event injection for agent testing.
-
-**Capabilities:**
-- Mount custom directory trees, inject files, track modifications
-- Mock APIs, inject latency/failures, restrict connectivity
-- Accelerate time for long-running tests, schedule events
-- Trigger failures, load spikes, data corruption at specific times
-- Save/restore world state for reproducible testing
-
-### Phase 8: Agent Gymnasium
-
-**Vision:** Library of worlds for training and evaluating autonomous agents.
-
-**Use cases:**
-- Test SRE agents against simulated outages
-- Evaluate coding agents in realistic project environments
-- Benchmark multi-agent collaboration in shared worlds
-- Train agents on edge cases without risking production systems

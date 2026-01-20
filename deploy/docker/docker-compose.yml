@@ -1,0 +1,119 @@
+# AgentOS Docker Compose Configuration
+#
+# Full stack deployment with:
+# - AgentOS Kernel
+# - Relay Server
+# - Multiple kernel instances (optional)
+#
+# Usage:
+#   docker-compose up -d                    # Start all services
+#   docker-compose up -d kernel             # Start just kernel
+#   docker-compose up -d --scale kernel=3   # Run 3 kernel instances
+#   docker-compose logs -f kernel           # View kernel logs
+
+version: "3.8"
+
+services:
+  # Relay Server - Central hub for remote connections
+  relay:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+    container_name: agentos-relay
+    command: relay
+    ports:
+      - "8765:8765"   # WebSocket relay
+      - "8766:8766"   # REST API
+    environment:
+      - RELAY_HOST=0.0.0.0
+      - RELAY_PORT=8765
+      - RELAY_API_PORT=8766
+      - RELAY_DEV_MODE=${RELAY_DEV_MODE:-false}
+    volumes:
+      - relay-data:/app/data
+    networks:
+      - agentos-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import socket; s=socket.socket(); s.connect(('localhost',8765)); s.close()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # AgentOS Kernel
+  kernel:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+    container_name: agentos-kernel
+    depends_on:
+      relay:
+        condition: service_healthy
+    environment:
+      - MACHINE_ID=${MACHINE_ID:-docker-kernel-1}
+      - MACHINE_TOKEN=${MACHINE_TOKEN:-}
+      - RELAY_URL=ws://relay:8765
+    volumes:
+      - kernel-data:/app/data
+      - ./agents:/app/agents/scripts:ro
+    networks:
+      - agentos-net
+    restart: unless-stopped
+
+  # Development kernel with source code mounted
+  kernel-dev:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+    container_name: agentos-kernel-dev
+    profiles:
+      - dev
+    depends_on:
+      relay:
+        condition: service_healthy
+    environment:
+      - MACHINE_ID=docker-kernel-dev
+      - MACHINE_TOKEN=${MACHINE_TOKEN:-dev-token}
+      - RELAY_URL=ws://relay:8765
+    volumes:
+      - ../../agents:/app/agents:ro
+      - ../../src:/app/src:ro
+      - kernel-dev-data:/app/data
+    networks:
+      - agentos-net
+
+  # Worker kernel for scaling
+  worker:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+    profiles:
+      - scale
+    depends_on:
+      relay:
+        condition: service_healthy
+    environment:
+      - MACHINE_ID=docker-worker-${HOSTNAME:-1}
+      - MACHINE_TOKEN=${MACHINE_TOKEN:-}
+      - RELAY_URL=ws://relay:8765
+    volumes:
+      - worker-data:/app/data
+    networks:
+      - agentos-net
+    deploy:
+      replicas: ${WORKER_REPLICAS:-2}
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+
+networks:
+  agentos-net:
+    driver: bridge
+    name: agentos-network
+
+volumes:
+  relay-data:
+  kernel-data:
+  kernel-dev-data:
+  worker-data:

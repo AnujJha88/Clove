@@ -804,13 +804,95 @@ python3 ops_platform/main.py benchmark \
 | Phase 3: Permissions | Medium | Medium | ✅ COMPLETE |
 | Phase 4: Network | Medium | Low | ✅ COMPLETE |
 | Phase 5: Events | Medium | Medium | ✅ COMPLETE |
-| Phase 6: Remote | High | High | Pending |
+| Phase 6: Remote | High | High | ✅ COMPLETE |
 | Phase 7: Orchestration | Low | Medium | Pending |
-| Phase 8: Quotas | Low | Medium | Pending |
-| **Phase 9: World Engine** | **High** | **High** | **NEW** |
+| **Phase 8: Cloud Deployment** | **High** | **High** | **✅ COMPLETE** |
+| Phase 9: Quotas | Low | Medium | Pending |
+| **Phase 10: World Engine** | **High** | **High** | **NEXT** |
+
+---
+
+## Phase 8: Cloud Deployment System ✅ COMPLETE
+
+**Goal:** One-command deploy AgentOS to any cloud or local Docker, manage a fleet of kernels from your terminal.
+
+### Architecture
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                         YOUR TERMINAL                             │
+│  $ agentos deploy aws    $ agentos status    $ agentos agent run │
+└───────────────────────────────┬──────────────────────────────────┘
+                                │
+                                ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                    RELAY SERVER (Cloud/Self-Hosted)               │
+│   ┌────────────┐    ┌────────────┐    ┌────────────┐             │
+│   │  REST API  │    │  WebSocket │    │   Fleet    │             │
+│   │ (CLI mgmt) │    │    Hub     │    │  Manager   │             │
+│   └────────────┘    └────────────┘    └────────────┘             │
+└────────────────────────────┬─────────────────────────────────────┘
+                             │
+         ┌───────────────────┼───────────────────┐
+         ▼                   ▼                   ▼
+┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
+│  AWS EC2        │ │  GCP Compute    │ │  Docker Local   │
+│  AgentOS Kernel │ │  AgentOS Kernel │ │  AgentOS Kernel │
+└─────────────────┘ └─────────────────┘ └─────────────────┘
+```
+
+### Components Implemented
+
+| Component | Location | Description |
+|-----------|----------|-------------|
+| CLI Tool | `cli/` | Click-based CLI with deploy/status/machines/agent/tokens commands |
+| Config Manager | `cli/config.py` | ~/.agentos/config.yaml management |
+| Relay API Client | `cli/relay_api.py` | REST API client for CLI |
+| REST API | `relay/api.py` | Fleet management endpoints |
+| Fleet Manager | `relay/fleet.py` | Machine registration and tracking |
+| Token Store | `relay/tokens.py` | Secure token persistence |
+| Docker Assets | `deploy/docker/` | Dockerfile, compose, entrypoint |
+| AWS Terraform | `deploy/terraform/aws/` | EC2 + networking module |
+| GCP Terraform | `deploy/terraform/gcp/` | Compute Engine module |
+| Systemd Services | `deploy/systemd/` | Service files for kernel/tunnel/relay |
+| Fleet Client | `agents/python_sdk/fleet_client.py` | Python fleet management |
+
+### CLI Commands
+
+```bash
+# Deployment
+agentos deploy docker [--name NAME]
+agentos deploy aws [--instance-type t3.micro] [--region us-east-1]
+agentos deploy gcp [--machine-type n1-standard-1] [--zone us-central1-a]
+
+# Fleet Management
+agentos status                    # Show all machines
+agentos machines list             # Detailed machine list
+agentos machines remove <id>      # Remove machine
+agentos machines ssh <id>         # SSH into machine
+agentos machines logs <id>        # View machine logs
+
+# Agent Execution
+agentos agent run <script.py> [--machine <id>|--all]
+agentos agent list [--machine <id>]
+agentos agent stop <id> --machine <id>
+agentos agent create <name> [--template basic|worker|supervisor]
+
+# Tokens
+agentos tokens create machine --name my-server
+agentos tokens create agent --target-machine <id>
+agentos tokens list
+agentos tokens revoke <id>
+
+# Config
+agentos config set relay_url wss://relay.example.com
+agentos config show
+```
+
+---
 
 **Recommended Build Order:**
-1. Phase 6 (Remote) - Cloud agent connectivity
+1. **Phase 10 (World Engine) - NEXT** - Foundation for safe agent execution
 2. Phase 7 (Orchestration) - Multi-agent task coordination
-3. Phase 8 (Quotas) - Resource metrics and quotas
-4. Phase 9 (World Engine) - Foundation for safe agent execution
+3. Phase 9 (Quotas) - Resource metrics and quotas
+4. Phase 11 (Benchmarks) - Agent evaluation framework

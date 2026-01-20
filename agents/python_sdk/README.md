@@ -33,6 +33,8 @@ with AgentOSClient() as client:
 |------|-------------|
 | `agentos.py` | Core SDK - `AgentOSClient` class with all syscalls |
 | `agentic.py` | Agentic loop framework - autonomous task execution |
+| `fleet_client.py` | Fleet management - deploy agents to remote machines |
+| `remote_client.py` | Remote agent SDK - run agents via relay server |
 
 ## AgentOSClient API
 
@@ -191,4 +193,118 @@ with AgentOSClient() as client:
         print(f"Error: {result.get('error')}")
     else:
         print(result['content'])
+```
+
+## Fleet Client
+
+For managing remote agent deployment across multiple machines.
+
+### Quick Start
+
+```python
+from fleet_client import FleetClient, SyncFleetClient
+
+# Async usage
+async def main():
+    fleet = FleetClient(relay_url="http://localhost:8766")
+
+    # List machines
+    machines = await fleet.list_machines()
+    for m in machines:
+        print(f"{m.machine_id}: {m.status}")
+
+    # Deploy agent
+    result = await fleet.deploy_agent(
+        "my_agent.py",
+        machine_id="docker-dev-abc123"
+    )
+
+    await fleet.close()
+
+# Sync usage
+fleet = SyncFleetClient(relay_url="http://localhost:8766")
+machines = fleet.list_machines()
+fleet.deploy_agent("my_agent.py", machine_id="docker-dev-abc123")
+```
+
+### FleetClient API
+
+```python
+# Machine operations
+machines = await fleet.list_machines()
+machine = await fleet.get_machine("machine-id")
+connected = await fleet.get_connected_machines()
+
+# Agent operations
+agents = await fleet.list_agents()
+agents = await fleet.list_agents(machine_id="m1")
+result = await fleet.deploy_agent("script.py", machine_id="m1")
+results = await fleet.run_on_all("health.py")
+await fleet.stop_agent(machine_id="m1", agent_id=42)
+
+# Fleet status
+status = await fleet.get_status()
+healthy = await fleet.health_check()
+```
+
+### Data Classes
+
+```python
+from fleet_client import Machine, Agent
+
+# Machine
+machine.machine_id      # "docker-dev-abc123"
+machine.provider        # "docker" | "aws" | "gcp"
+machine.status          # "connected" | "disconnected"
+machine.ip_address      # "172.17.0.2"
+machine.is_connected()  # True/False
+
+# Agent
+agent.agent_id          # 42
+agent.agent_name        # "my_agent"
+agent.target_machine    # "docker-dev-abc123"
+agent.status            # "running" | "stopped"
+agent.syscalls_sent     # 15
+```
+
+### Run on All Machines
+
+```python
+# Deploy to all connected machines
+results = await fleet.run_on_all("health_check.py")
+
+# With filtering
+results = await fleet.run_on_all(
+    "cleanup.py",
+    filter_fn=lambda m: m.provider == "docker"
+)
+
+for result in results:
+    print(f"{result['machine_id']}: {result['status']}")
+```
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `RELAY_API_URL` | Relay server URL | `http://localhost:8766` |
+| `AGENTOS_API_TOKEN` | Auth token | (none) |
+
+## Remote Client
+
+For running agents that connect through the relay server.
+
+```python
+from remote_client import RemoteAgentOS
+
+agent = RemoteAgentOS(
+    name="my_agent",
+    relay_url="ws://relay.example.com:8765",
+    token="your_agent_token"
+)
+
+# Use like normal AgentOS
+agent.write("Hello from remote!")
+result = agent.think("What is 2+2?")
+agent.exit(0)
 ```

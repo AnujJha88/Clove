@@ -20,6 +20,8 @@
 #include "kernel/reactor.hpp"
 #include "kernel/llm_client.hpp"
 #include "kernel/permissions.hpp"
+#include "kernel/world_engine.hpp"
+#include "kernel/tunnel_client.hpp"
 #include "ipc/socket_server.hpp"
 #include "runtime/agent_process.hpp"
 #include <nlohmann/json.hpp>
@@ -97,6 +99,11 @@ struct KernelConfig {
     bool enable_sandboxing = true;
     std::string gemini_api_key;          // Gemini API key (or from env)
     std::string llm_model = "gemini-2.0-flash";
+    // Tunnel configuration
+    std::string relay_url;               // Relay server URL (ws://...)
+    std::string machine_id;              // This machine's ID
+    std::string machine_token;           // Authentication token
+    bool tunnel_auto_connect = false;    // Auto-connect on startup
 };
 
 class Kernel {
@@ -140,6 +147,8 @@ private:
     std::unique_ptr<ipc::SocketServer> socket_server_;
     std::unique_ptr<runtime::AgentManager> agent_manager_;
     std::unique_ptr<LLMClient> llm_client_;
+    std::unique_ptr<WorldEngine> world_engine_;
+    std::unique_ptr<TunnelClient> tunnel_client_;
 
     // IPC: Agent mailboxes (message queues per agent)
     std::unordered_map<uint32_t, std::queue<IPCMessage>> agent_mailboxes_;
@@ -213,6 +222,34 @@ private:
     ipc::Message handle_unsubscribe(const ipc::Message& msg);
     ipc::Message handle_poll_events(const ipc::Message& msg);
     ipc::Message handle_emit(const ipc::Message& msg);
+
+    // World simulation syscall handlers
+    ipc::Message handle_world_create(const ipc::Message& msg);
+    ipc::Message handle_world_destroy(const ipc::Message& msg);
+    ipc::Message handle_world_list(const ipc::Message& msg);
+    ipc::Message handle_world_join(const ipc::Message& msg);
+    ipc::Message handle_world_leave(const ipc::Message& msg);
+    ipc::Message handle_world_event(const ipc::Message& msg);
+    ipc::Message handle_world_state(const ipc::Message& msg);
+    ipc::Message handle_world_snapshot(const ipc::Message& msg);
+    ipc::Message handle_world_restore(const ipc::Message& msg);
+
+    // World-aware I/O helpers
+    ipc::Message handle_read_virtual(const ipc::Message& msg, World* world);
+    ipc::Message handle_write_virtual(const ipc::Message& msg, World* world);
+    ipc::Message handle_http_virtual(const ipc::Message& msg, World* world);
+
+    // Tunnel syscall handlers
+    ipc::Message handle_tunnel_connect(const ipc::Message& msg);
+    ipc::Message handle_tunnel_disconnect(const ipc::Message& msg);
+    ipc::Message handle_tunnel_status(const ipc::Message& msg);
+    ipc::Message handle_tunnel_list_remotes(const ipc::Message& msg);
+    ipc::Message handle_tunnel_config(const ipc::Message& msg);
+
+    // Tunnel event handling
+    void process_tunnel_events();
+    void handle_tunnel_syscall(uint32_t agent_id, uint8_t opcode,
+                              const std::vector<uint8_t>& payload);
 
     // Update client in reactor (for write events)
     void update_client_events(int fd);

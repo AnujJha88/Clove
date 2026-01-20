@@ -101,35 +101,51 @@
 
 ### Network Extended
 
-| Op | Name | Description |
-|----|------|-------------|
-| `0x51` | DOWNLOAD | Download file from URL to path |
+| Op | Name | Description | Status |
+|----|------|-------------|--------|
+| `0x51` | DOWNLOAD | Download file from URL to path | Planned |
 
-### Remote Tunnel (Phase 6)
+### Remote Tunnel
 
-| Op | Name | Description |
-|----|------|-------------|
-| `0x70` | TUNNEL_CONNECT | Connect kernel to relay server |
-| `0x71` | TUNNEL_STATUS | Check tunnel connection status |
-| `0x72` | TUNNEL_DISCONNECT | Disconnect from relay |
+| Op | Name | Description | Status |
+|----|------|-------------|--------|
+| `0x70` | TUNNEL_CONNECT | Connect kernel to relay server | Planned |
+| `0x71` | TUNNEL_STATUS | Check tunnel connection status | Planned |
+| `0x72` | TUNNEL_DISCONNECT | Disconnect from relay | Planned |
 
-### Task Orchestration (Phase 7)
+> **Note**: Remote connectivity is currently implemented via the Python tunnel client (`scripts/tunnel_client.py`) rather than kernel syscalls. The kernel communicates locally, and the tunnel client bridges to the relay server.
 
-| Op | Name | Description |
-|----|------|-------------|
-| `0x80` | TASK_CREATE | Create orchestrated task |
-| `0x81` | TASK_ASSIGN | Assign agent to task |
-| `0x82` | TASK_STATUS | Get task status |
-| `0x83` | TASK_COMPLETE | Mark task complete |
-| `0x84` | TASK_LIST | List active tasks |
+### Task Orchestration
 
-### Metrics & Quotas (Phase 8)
+| Op | Name | Description | Status |
+|----|------|-------------|--------|
+| `0x80` | TASK_CREATE | Create orchestrated task | Planned |
+| `0x81` | TASK_ASSIGN | Assign agent to task | Planned |
+| `0x82` | TASK_STATUS | Get task status | Planned |
+| `0x83` | TASK_COMPLETE | Mark task complete | Planned |
+| `0x84` | TASK_LIST | List active tasks | Planned |
 
-| Op | Name | Description |
-|----|------|-------------|
-| `0x90` | METRICS | Get own resource metrics |
-| `0x91` | METRICS_ALL | Get all agents' metrics (privileged) |
-| `0x92` | SET_QUOTA | Set resource quota for agent |
+### Metrics & Quotas
+
+| Op | Name | Description | Status |
+|----|------|-------------|--------|
+| `0x90` | METRICS | Get own resource metrics | Planned |
+| `0x91` | METRICS_ALL | Get all agents' metrics (privileged) | Planned |
+| `0x92` | SET_QUOTA | Set resource quota for agent | Planned |
+
+---
+
+## Cloud Deployment (Phase 8)
+
+Phase 8 added cloud deployment infrastructure without new kernel syscalls. The deployment system operates at the orchestration layer:
+
+- **CLI Tool** (`agentos`): Fleet management from terminal
+- **REST API** (`relay/api.py`): Endpoints for machine/agent/token management
+- **Docker Deployment**: Containerized kernels via `deploy/docker/`
+- **AWS Deployment**: EC2 provisioning via `deploy/terraform/aws/`
+- **GCP Deployment**: Compute Engine via `deploy/terraform/gcp/`
+
+See [CLI Reference](../cli/README.md) for usage.
 
 ---
 

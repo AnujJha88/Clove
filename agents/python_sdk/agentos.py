@@ -48,6 +48,22 @@ class SyscallOp(IntEnum):
     SYS_UNSUBSCRIBE = 0x61  # Unsubscribe from events
     SYS_POLL_EVENTS = 0x62  # Get pending events
     SYS_EMIT = 0x63         # Emit custom event
+    # World Simulation
+    SYS_WORLD_CREATE = 0xA0    # Create world from config
+    SYS_WORLD_DESTROY = 0xA1   # Destroy world
+    SYS_WORLD_LIST = 0xA2      # List active worlds
+    SYS_WORLD_JOIN = 0xA3      # Join agent to world
+    SYS_WORLD_LEAVE = 0xA4     # Remove agent from world
+    SYS_WORLD_EVENT = 0xA5     # Inject chaos event
+    SYS_WORLD_STATE = 0xA6     # Get world metrics
+    SYS_WORLD_SNAPSHOT = 0xA7  # Save world state
+    SYS_WORLD_RESTORE = 0xA8   # Restore from snapshot
+    # Remote Connectivity (Tunnel)
+    SYS_TUNNEL_CONNECT = 0xB0      # Connect kernel to relay server
+    SYS_TUNNEL_DISCONNECT = 0xB1   # Disconnect from relay
+    SYS_TUNNEL_STATUS = 0xB2       # Get tunnel connection status
+    SYS_TUNNEL_LIST_REMOTES = 0xB3 # List connected remote agents
+    SYS_TUNNEL_CONFIG = 0xB4       # Configure tunnel settings
     SYS_EXIT = 0xFF   # Graceful shutdown
 
 
@@ -728,6 +744,329 @@ class AgentOSClient:
         }
 
         response = self.call(SyscallOp.SYS_EMIT, json.dumps(payload))
+        if response:
+            try:
+                return json.loads(response.payload_str)
+            except json.JSONDecodeError:
+                return {"success": False, "error": response.payload_str}
+        return {"success": False, "error": "No response from kernel"}
+
+    # =========================================================================
+    # World Simulation Methods
+    # =========================================================================
+
+    def world_create(self, name: str, config: dict = None) -> dict:
+        """Create a new simulated world.
+
+        Args:
+            name: Name for the world
+            config: World configuration with optional keys:
+                - virtual_filesystem: {initial_files: {...}, writable_patterns: [...]}
+                - network: {mode: "mock", mock_responses: {...}}
+                - chaos: {enabled: bool, failure_rate: float, ...}
+
+        Returns:
+            dict with 'success', 'world_id', 'name'
+        """
+        import json
+        payload = {
+            "name": name,
+            "config": config or {}
+        }
+
+        response = self.call(SyscallOp.SYS_WORLD_CREATE, json.dumps(payload))
+        if response:
+            try:
+                return json.loads(response.payload_str)
+            except json.JSONDecodeError:
+                return {"success": False, "error": response.payload_str}
+        return {"success": False, "error": "No response from kernel"}
+
+    def world_destroy(self, world_id: str, force: bool = False) -> dict:
+        """Destroy a world.
+
+        Args:
+            world_id: ID of the world to destroy
+            force: If True, destroy even if agents are in the world
+
+        Returns:
+            dict with 'success', 'world_id'
+        """
+        import json
+        payload = {
+            "world_id": world_id,
+            "force": force
+        }
+
+        response = self.call(SyscallOp.SYS_WORLD_DESTROY, json.dumps(payload))
+        if response:
+            try:
+                return json.loads(response.payload_str)
+            except json.JSONDecodeError:
+                return {"success": False, "error": response.payload_str}
+        return {"success": False, "error": "No response from kernel"}
+
+    def world_list(self) -> dict:
+        """List all active worlds.
+
+        Returns:
+            dict with 'success', 'worlds' (list), 'count'
+        """
+        import json
+
+        response = self.call(SyscallOp.SYS_WORLD_LIST, "{}")
+        if response:
+            try:
+                return json.loads(response.payload_str)
+            except json.JSONDecodeError:
+                return {"success": False, "worlds": [], "count": 0, "error": response.payload_str}
+        return {"success": False, "worlds": [], "count": 0, "error": "No response from kernel"}
+
+    def world_join(self, world_id: str) -> dict:
+        """Join a world.
+
+        When in a world, file and network operations are routed through the
+        world's virtual filesystem and network mock.
+
+        Args:
+            world_id: ID of the world to join
+
+        Returns:
+            dict with 'success', 'world_id'
+        """
+        import json
+        payload = {"world_id": world_id}
+
+        response = self.call(SyscallOp.SYS_WORLD_JOIN, json.dumps(payload))
+        if response:
+            try:
+                return json.loads(response.payload_str)
+            except json.JSONDecodeError:
+                return {"success": False, "error": response.payload_str}
+        return {"success": False, "error": "No response from kernel"}
+
+    def world_leave(self) -> dict:
+        """Leave the current world.
+
+        Returns:
+            dict with 'success'
+        """
+        import json
+
+        response = self.call(SyscallOp.SYS_WORLD_LEAVE, "{}")
+        if response:
+            try:
+                return json.loads(response.payload_str)
+            except json.JSONDecodeError:
+                return {"success": False, "error": response.payload_str}
+        return {"success": False, "error": "No response from kernel"}
+
+    def world_event(self, world_id: str, event_type: str, params: dict = None) -> dict:
+        """Inject a chaos event into a world.
+
+        Event types include:
+            - "disk_full": Simulate full disk
+            - "disk_fail": Simulate disk failure
+            - "network_partition": Simulate network outage
+            - "slow_io": Inject I/O latency
+
+        Args:
+            world_id: ID of the world
+            event_type: Type of chaos event
+            params: Optional parameters for the event
+
+        Returns:
+            dict with 'success', 'world_id', 'event_type'
+        """
+        import json
+        payload = {
+            "world_id": world_id,
+            "event_type": event_type,
+            "params": params or {}
+        }
+
+        response = self.call(SyscallOp.SYS_WORLD_EVENT, json.dumps(payload))
+        if response:
+            try:
+                return json.loads(response.payload_str)
+            except json.JSONDecodeError:
+                return {"success": False, "error": response.payload_str}
+        return {"success": False, "error": "No response from kernel"}
+
+    def world_state(self, world_id: str) -> dict:
+        """Get the current state and metrics of a world.
+
+        Args:
+            world_id: ID of the world
+
+        Returns:
+            dict with 'success', 'state' containing metrics
+        """
+        import json
+        payload = {"world_id": world_id}
+
+        response = self.call(SyscallOp.SYS_WORLD_STATE, json.dumps(payload))
+        if response:
+            try:
+                return json.loads(response.payload_str)
+            except json.JSONDecodeError:
+                return {"success": False, "error": response.payload_str}
+        return {"success": False, "error": "No response from kernel"}
+
+    def world_snapshot(self, world_id: str) -> dict:
+        """Create a snapshot of a world's state.
+
+        The snapshot can be used to restore the world later.
+
+        Args:
+            world_id: ID of the world
+
+        Returns:
+            dict with 'success', 'snapshot' (JSON object)
+        """
+        import json
+        payload = {"world_id": world_id}
+
+        response = self.call(SyscallOp.SYS_WORLD_SNAPSHOT, json.dumps(payload))
+        if response:
+            try:
+                return json.loads(response.payload_str)
+            except json.JSONDecodeError:
+                return {"success": False, "error": response.payload_str}
+        return {"success": False, "error": "No response from kernel"}
+
+    def world_restore(self, snapshot: dict, new_world_id: str = None) -> dict:
+        """Restore a world from a snapshot.
+
+        Args:
+            snapshot: The snapshot object from world_snapshot()
+            new_world_id: Optional ID for the restored world (auto-generated if not provided)
+
+        Returns:
+            dict with 'success', 'world_id'
+        """
+        import json
+        payload = {
+            "snapshot": snapshot,
+            "new_world_id": new_world_id or ""
+        }
+
+        response = self.call(SyscallOp.SYS_WORLD_RESTORE, json.dumps(payload))
+        if response:
+            try:
+                return json.loads(response.payload_str)
+            except json.JSONDecodeError:
+                return {"success": False, "error": response.payload_str}
+        return {"success": False, "error": "No response from kernel"}
+
+    # =========================================================================
+    # Tunnel (Remote Connectivity) Methods
+    # =========================================================================
+
+    def tunnel_connect(self, relay_url: str, machine_id: str = None,
+                      token: str = None) -> dict:
+        """Connect the kernel to a relay server for remote agent access.
+
+        Args:
+            relay_url: WebSocket URL of the relay server (e.g., ws://localhost:8765)
+            machine_id: This machine's identifier
+            token: Authentication token for the relay
+
+        Returns:
+            dict with 'success', 'relay_url', 'machine_id'
+        """
+        import json
+        payload = {
+            "relay_url": relay_url
+        }
+        if machine_id:
+            payload["machine_id"] = machine_id
+        if token:
+            payload["token"] = token
+
+        response = self.call(SyscallOp.SYS_TUNNEL_CONNECT, json.dumps(payload))
+        if response:
+            try:
+                return json.loads(response.payload_str)
+            except json.JSONDecodeError:
+                return {"success": False, "error": response.payload_str}
+        return {"success": False, "error": "No response from kernel"}
+
+    def tunnel_disconnect(self) -> dict:
+        """Disconnect the kernel from the relay server.
+
+        Returns:
+            dict with 'success'
+        """
+        import json
+
+        response = self.call(SyscallOp.SYS_TUNNEL_DISCONNECT, "{}")
+        if response:
+            try:
+                return json.loads(response.payload_str)
+            except json.JSONDecodeError:
+                return {"success": False, "error": response.payload_str}
+        return {"success": False, "error": "No response from kernel"}
+
+    def tunnel_status(self) -> dict:
+        """Get the current tunnel connection status.
+
+        Returns:
+            dict with 'success', 'connected', 'relay_url', 'machine_id',
+                 'remote_agent_count'
+        """
+        import json
+
+        response = self.call(SyscallOp.SYS_TUNNEL_STATUS, "{}")
+        if response:
+            try:
+                return json.loads(response.payload_str)
+            except json.JSONDecodeError:
+                return {"success": False, "error": response.payload_str}
+        return {"success": False, "error": "No response from kernel"}
+
+    def tunnel_list_remotes(self) -> dict:
+        """List remote agents currently connected through the tunnel.
+
+        Returns:
+            dict with 'success', 'agents' (list), 'count'
+            Each agent has: 'agent_id', 'name', 'connected_at'
+        """
+        import json
+
+        response = self.call(SyscallOp.SYS_TUNNEL_LIST_REMOTES, "{}")
+        if response:
+            try:
+                return json.loads(response.payload_str)
+            except json.JSONDecodeError:
+                return {"success": False, "agents": [], "error": response.payload_str}
+        return {"success": False, "agents": [], "error": "No response from kernel"}
+
+    def tunnel_config(self, relay_url: str = None, machine_id: str = None,
+                     token: str = None, reconnect_interval: int = None) -> dict:
+        """Configure tunnel settings without connecting.
+
+        Args:
+            relay_url: WebSocket URL of the relay server
+            machine_id: This machine's identifier
+            token: Authentication token
+            reconnect_interval: Seconds between reconnect attempts
+
+        Returns:
+            dict with 'success'
+        """
+        import json
+        payload = {}
+        if relay_url:
+            payload["relay_url"] = relay_url
+        if machine_id:
+            payload["machine_id"] = machine_id
+        if token:
+            payload["token"] = token
+        if reconnect_interval is not None:
+            payload["reconnect_interval"] = reconnect_interval
+
+        response = self.call(SyscallOp.SYS_TUNNEL_CONFIG, json.dumps(payload))
         if response:
             try:
                 return json.loads(response.payload_str)

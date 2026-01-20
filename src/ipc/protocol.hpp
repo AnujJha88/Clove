@@ -50,6 +50,22 @@ enum class SyscallOp : uint8_t {
     SYS_UNSUBSCRIBE = 0x61,  // Unsubscribe from events
     SYS_POLL_EVENTS = 0x62,  // Get pending events
     SYS_EMIT        = 0x63,  // Emit custom event
+    // World Simulation
+    SYS_WORLD_CREATE   = 0xA0,  // Create world from config
+    SYS_WORLD_DESTROY  = 0xA1,  // Destroy world
+    SYS_WORLD_LIST     = 0xA2,  // List active worlds
+    SYS_WORLD_JOIN     = 0xA3,  // Join agent to world
+    SYS_WORLD_LEAVE    = 0xA4,  // Remove agent from world
+    SYS_WORLD_EVENT    = 0xA5,  // Inject chaos event
+    SYS_WORLD_STATE    = 0xA6,  // Get world metrics
+    SYS_WORLD_SNAPSHOT = 0xA7,  // Save world state
+    SYS_WORLD_RESTORE  = 0xA8,  // Restore from snapshot
+    // Remote Connectivity (Tunnel)
+    SYS_TUNNEL_CONNECT    = 0xB0,  // Connect kernel to relay server
+    SYS_TUNNEL_DISCONNECT = 0xB1,  // Disconnect from relay
+    SYS_TUNNEL_STATUS     = 0xB2,  // Get tunnel connection status
+    SYS_TUNNEL_LIST_REMOTES = 0xB3,  // List connected remote agents
+    SYS_TUNNEL_CONFIG     = 0xB4,  // Configure tunnel settings
     SYS_EXIT   = 0xFF   // Graceful shutdown
 };
 
@@ -192,6 +208,20 @@ inline const char* opcode_to_string(SyscallOp op) {
         case SyscallOp::SYS_UNSUBSCRIBE: return "UNSUBSCRIBE";
         case SyscallOp::SYS_POLL_EVENTS: return "POLL_EVENTS";
         case SyscallOp::SYS_EMIT:        return "EMIT";
+        case SyscallOp::SYS_WORLD_CREATE:   return "WORLD_CREATE";
+        case SyscallOp::SYS_WORLD_DESTROY:  return "WORLD_DESTROY";
+        case SyscallOp::SYS_WORLD_LIST:     return "WORLD_LIST";
+        case SyscallOp::SYS_WORLD_JOIN:     return "WORLD_JOIN";
+        case SyscallOp::SYS_WORLD_LEAVE:    return "WORLD_LEAVE";
+        case SyscallOp::SYS_WORLD_EVENT:    return "WORLD_EVENT";
+        case SyscallOp::SYS_WORLD_STATE:    return "WORLD_STATE";
+        case SyscallOp::SYS_WORLD_SNAPSHOT: return "WORLD_SNAPSHOT";
+        case SyscallOp::SYS_WORLD_RESTORE:  return "WORLD_RESTORE";
+        case SyscallOp::SYS_TUNNEL_CONNECT:    return "TUNNEL_CONNECT";
+        case SyscallOp::SYS_TUNNEL_DISCONNECT: return "TUNNEL_DISCONNECT";
+        case SyscallOp::SYS_TUNNEL_STATUS:     return "TUNNEL_STATUS";
+        case SyscallOp::SYS_TUNNEL_LIST_REMOTES: return "TUNNEL_LIST_REMOTES";
+        case SyscallOp::SYS_TUNNEL_CONFIG:     return "TUNNEL_CONFIG";
         case SyscallOp::SYS_EXIT:      return "EXIT";
         default: return "UNKNOWN";
     }

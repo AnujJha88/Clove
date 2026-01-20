@@ -66,6 +66,8 @@ A microkernel operating system for AI agents. Run multiple autonomous agents as 
 | Framework Adapters | Done | LangChain, CrewAI, AutoGen integration |
 | Web Dashboard | Done | Real-time browser-based monitoring UI |
 | Agentic Loop | Done | Claude Code-style autonomous agent framework |
+| Remote Connectivity | Done | Relay server for cloud agent connections |
+| **Cloud Deployment** | **Done** | **CLI for deploying to Docker, AWS, GCP** |
 
 ## Web Dashboard
 
@@ -108,6 +110,83 @@ with AgentOSClient() as client:
 ```
 
 **Features:** Iterative task execution, built-in tools (exec, read_file, write_file, done), conversation history, extensible tool system.
+
+## Cloud Deployment (CLI)
+
+Deploy AgentOS kernels anywhere with a single command.
+
+```bash
+# Install CLI
+pip install -e cli/
+
+# Deploy to Docker
+$ agentos deploy docker --name dev-kernel
+Creating AgentOS kernel container...
+  Machine ID: docker-dev-kernel-a1b2
+  Status: Running ✓
+
+# Deploy to AWS
+$ agentos deploy aws --region us-east-1
+Provisioning AWS EC2 instance...
+  Machine ID: aws-i-0abc123-us-east-1
+  SSH: ssh -i ~/.ssh/agentos.pem ubuntu@54.123.45.67
+
+# Deploy to GCP
+$ agentos deploy gcp --zone us-central1-a
+Provisioning GCP Compute instance...
+  Machine ID: gcp-agentos-kernel-us-central1
+
+# Check fleet status
+$ agentos status
+Connected Kernels: 3
+Active Agents: 5
+
+# Run agent remotely
+$ agentos agent run my_agent.py --machine docker-dev-kernel-a1b2
+```
+
+**CLI Commands:**
+| Command | Description |
+|---------|-------------|
+| `agentos deploy docker` | Deploy to local Docker |
+| `agentos deploy aws` | Deploy to AWS EC2 |
+| `agentos deploy gcp` | Deploy to GCP Compute |
+| `agentos status` | Show fleet status |
+| `agentos machines list` | List all machines |
+| `agentos agent run <script>` | Run agent on machine |
+| `agentos tokens create` | Create auth tokens |
+
+## Remote Connectivity
+
+Cloud agents connect to your local kernel through a relay server:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         YOUR TERMINAL                            │
+│  $ agentos deploy aws    $ agentos status    $ agentos agent run│
+└───────────────────────────────┬─────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    RELAY SERVER (Cloud/Self-Hosted)              │
+│   ┌────────────┐    ┌────────────┐    ┌────────────┐            │
+│   │  REST API  │    │  WebSocket │    │   Fleet    │            │
+│   │ (CLI mgmt) │    │    Hub     │    │  Manager   │            │
+│   └────────────┘    └────────────┘    └────────────┘            │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+         ┌───────────────────┼───────────────────┐
+         ▼                   ▼                   ▼
+┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
+│  AWS EC2        │ │  GCP Compute    │ │  Docker Local   │
+│  AgentOS Kernel │ │  AgentOS Kernel │ │  AgentOS Kernel │
+└─────────────────┘ └─────────────────┘ └─────────────────┘
+```
+
+**Start relay server:**
+```bash
+cd relay && python3 relay_server.py --dev
+```
 
 ## Future Directions
 
@@ -344,12 +423,26 @@ AgentOS/
 │   ├── runtime/          # Sandbox (namespaces/cgroups) and agent lifecycle
 │   └── util/             # Logging utilities
 ├── agents/
-│   ├── python_sdk/       # Python client library + agentic loop
+│   ├── python_sdk/       # Python client library + agentic loop + fleet client
 │   ├── dashboard/        # Web monitoring UI + WebSocket proxy
 │   ├── llm_service/      # LLM subprocess (google-genai)
 │   ├── mcp/              # MCP server for Claude Desktop
 │   ├── adapters/         # LangChain, CrewAI, AutoGen adapters
 │   └── examples/         # Demo agents
+├── cli/                  # AgentOS CLI tool
+│   ├── agentos.py        # Main entry point
+│   ├── config.py         # Configuration management
+│   ├── relay_api.py      # Relay REST API client
+│   └── commands/         # CLI commands (deploy, status, machines, agent, tokens)
+├── relay/                # Relay server for remote connectivity
+│   ├── relay_server.py   # WebSocket relay server
+│   ├── api.py            # REST API endpoints
+│   ├── fleet.py          # Fleet management
+│   └── tokens.py         # Token persistence
+├── deploy/               # Deployment assets
+│   ├── docker/           # Dockerfile, docker-compose.yml
+│   ├── terraform/        # AWS and GCP Terraform modules
+│   └── systemd/          # Systemd service files
 ├── build/
 ├── CMakeLists.txt
 ├── vcpkg.json

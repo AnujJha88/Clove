@@ -1,0 +1,13 @@
+# AgentOS Relay Server Dependencies
+
+# WebSocket server
+websockets>=12.0
+
+# HTTP server for REST API
+aiohttp>=3.8
+
+# Environment variables
+python-dotenv>=1.0.0
+
+# Optional: for future MQTT support
+asyncio-mqtt>=0.16.0

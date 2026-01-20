@@ -4,6 +4,7 @@
 #include <sys/wait.h>
 #include <csignal>
 #include <fstream>
+#include <thread>
 #include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
@@ -28,6 +29,8 @@ Kernel::Kernel(const Config& config)
     , reactor_(std::make_unique<Reactor>())
     , socket_server_(std::make_unique<ipc::SocketServer>(config.socket_path))
     , agent_manager_(std::make_unique<runtime::AgentManager>(config.socket_path))
+    , world_engine_(std::make_unique<WorldEngine>())
+    , tunnel_client_(std::make_unique<TunnelClient>())
 {
     // Initialize LLM client
     LLMConfig llm_config;
@@ -73,11 +76,35 @@ bool Kernel::init() {
     signal(SIGINT, signal_handler);
     signal(SIGTERM, signal_handler);
 
+    // Initialize tunnel client
+    if (tunnel_client_->init()) {
+        spdlog::info("Tunnel client initialized");
+
+        // Configure if relay URL is set
+        if (!config_.relay_url.empty()) {
+            TunnelConfig tc;
+            tc.relay_url = config_.relay_url;
+            tc.machine_id = config_.machine_id;
+            tc.token = config_.machine_token;
+            tunnel_client_->configure(tc);
+
+            // Auto-connect if configured
+            if (config_.tunnel_auto_connect) {
+                if (tunnel_client_->connect()) {
+                    spdlog::info("Tunnel connected to relay: {}", config_.relay_url);
+                } else {
+                    spdlog::warn("Failed to auto-connect tunnel to relay");
+                }
+            }
+        }
+    }
+
     spdlog::info("Kernel initialized successfully");
     spdlog::info("Sandboxing: {}", config_.enable_sandboxing ? "enabled" : "disabled");
     spdlog::info("LLM: {} ({})",
         llm_client_->is_configured() ? "configured" : "not configured",
         llm_client_->config().model);
+    spdlog::info("Tunnel: {}", !config_.relay_url.empty() ? "configured" : "not configured");
     return true;
 }
 
@@ -94,11 +121,15 @@ void Kernel::run() {
             break;
         }
 
+        // Process tunnel events (syscalls from remote agents)
+        process_tunnel_events();
+
         // Reap dead agents periodically
         agent_manager_->reap_agents();
     }
 
     spdlog::info("Kernel shutting down...");
+    tunnel_client_->shutdown();
     agent_manager_->stop_all();
     socket_server_->stop();
     spdlog::info("Kernel stopped");
@@ -251,6 +282,50 @@ ipc::Message Kernel::handle_message(const ipc::Message& msg) {
 
         case ipc::SyscallOp::SYS_EMIT:
             return handle_emit(msg);
+
+        // World simulation syscalls
+        case ipc::SyscallOp::SYS_WORLD_CREATE:
+            return handle_world_create(msg);
+
+        case ipc::SyscallOp::SYS_WORLD_DESTROY:
+            return handle_world_destroy(msg);
+
+        case ipc::SyscallOp::SYS_WORLD_LIST:
+            return handle_world_list(msg);
+
+        case ipc::SyscallOp::SYS_WORLD_JOIN:
+            return handle_world_join(msg);
+
+        case ipc::SyscallOp::SYS_WORLD_LEAVE:
+            return handle_world_leave(msg);
+
+        case ipc::SyscallOp::SYS_WORLD_EVENT:
+            return handle_world_event(msg);
+
+        case ipc::SyscallOp::SYS_WORLD_STATE:
+            return handle_world_state(msg);
+
+        case ipc::SyscallOp::SYS_WORLD_SNAPSHOT:
+            return handle_world_snapshot(msg);
+
+        case ipc::SyscallOp::SYS_WORLD_RESTORE:
+            return handle_world_restore(msg);
+
+        // Tunnel syscalls
+        case ipc::SyscallOp::SYS_TUNNEL_CONNECT:
+            return handle_tunnel_connect(msg);
+
+        case ipc::SyscallOp::SYS_TUNNEL_DISCONNECT:
+            return handle_tunnel_disconnect(msg);
+
+        case ipc::SyscallOp::SYS_TUNNEL_STATUS:
+            return handle_tunnel_status(msg);
+
+        case ipc::SyscallOp::SYS_TUNNEL_LIST_REMOTES:
+            return handle_tunnel_list_remotes(msg);
+
+        case ipc::SyscallOp::SYS_TUNNEL_CONFIG:
+            return handle_tunnel_config(msg);
 
         default:
             spdlog::warn("Unknown opcode: 0x{:02x}", static_cast<uint8_t>(msg.opcode));
@@ -523,6 +598,26 @@ ipc::Message Kernel::handle_exec(const ipc::Message& msg) {
 }
 
 ipc::Message Kernel::handle_read(const ipc::Message& msg) {
+    // Check if agent is in a world - route through VFS if so
+    if (world_engine_->is_agent_in_world(msg.agent_id)) {
+        auto world_id = world_engine_->get_agent_world(msg.agent_id);
+        if (world_id) {
+            auto* world = world_engine_->get_world(*world_id);
+            if (world && world->vfs().is_enabled()) {
+                // Parse to check if VFS should intercept
+                try {
+                    json j = json::parse(msg.payload_str());
+                    std::string path = j.value("path", "");
+                    if (world->vfs().should_intercept(path)) {
+                        return handle_read_virtual(msg, world);
+                    }
+                } catch (...) {
+                    // Fall through to normal handling
+                }
+            }
+        }
+    }
+
     auto& perms = get_agent_permissions(msg.agent_id);
 
     try {
@@ -591,6 +686,26 @@ ipc::Message Kernel::handle_read(const ipc::Message& msg) {
 }
 
 ipc::Message Kernel::handle_write(const ipc::Message& msg) {
+    // Check if agent is in a world - route through VFS if so
+    if (world_engine_->is_agent_in_world(msg.agent_id)) {
+        auto world_id = world_engine_->get_agent_world(msg.agent_id);
+        if (world_id) {
+            auto* world = world_engine_->get_world(*world_id);
+            if (world && world->vfs().is_enabled()) {
+                // Parse to check if VFS should intercept
+                try {
+                    json j = json::parse(msg.payload_str());
+                    std::string path = j.value("path", "");
+                    if (world->vfs().should_intercept(path)) {
+                        return handle_write_virtual(msg, world);
+                    }
+                } catch (...) {
+                    // Fall through to normal handling
+                }
+            }
+        }
+    }
+
     auto& perms = get_agent_permissions(msg.agent_id);
 
     try {
@@ -959,6 +1074,26 @@ ipc::Message Kernel::handle_set_perms(const ipc::Message& msg) {
 // ============================================================================
 
 ipc::Message Kernel::handle_http(const ipc::Message& msg) {
+    // Check if agent is in a world - route through network mock if so
+    if (world_engine_->is_agent_in_world(msg.agent_id)) {
+        auto world_id = world_engine_->get_agent_world(msg.agent_id);
+        if (world_id) {
+            auto* world = world_engine_->get_world(*world_id);
+            if (world && world->network().is_enabled()) {
+                // Parse to check if network mock should intercept
+                try {
+                    json j = json::parse(msg.payload_str());
+                    std::string url = j.value("url", "");
+                    if (world->network().should_intercept(url)) {
+                        return handle_http_virtual(msg, world);
+                    }
+                } catch (...) {
+                    // Fall through to normal handling
+                }
+            }
+        }
+    }
+
     auto& perms = get_agent_permissions(msg.agent_id);
 
     try {
@@ -1475,6 +1610,677 @@ ipc::Message Kernel::handle_emit(const ipc::Message& msg) {
         response["error"] = std::string("invalid request: ") + e.what();
         return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_EMIT, response.dump());
     }
+}
+
+// ============================================================================
+// World Simulation Handlers
+// ============================================================================
+
+ipc::Message Kernel::handle_world_create(const ipc::Message& msg) {
+    try {
+        json j = json::parse(msg.payload_str());
+
+        std::string name = j.value("name", "unnamed");
+        json config = j.value("config", json::object());
+
+        auto world_id = world_engine_->create_world(name, config);
+        if (!world_id) {
+            json response;
+            response["success"] = false;
+            response["error"] = "Failed to create world";
+            return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_WORLD_CREATE, response.dump());
+        }
+
+        spdlog::info("Agent {} created world '{}' (name={})", msg.agent_id, *world_id, name);
+
+        json response;
+        response["success"] = true;
+        response["world_id"] = *world_id;
+        response["name"] = name;
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_WORLD_CREATE, response.dump());
+
+    } catch (const std::exception& e) {
+        json response;
+        response["success"] = false;
+        response["error"] = std::string("invalid request: ") + e.what();
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_WORLD_CREATE, response.dump());
+    }
+}
+
+ipc::Message Kernel::handle_world_destroy(const ipc::Message& msg) {
+    try {
+        json j = json::parse(msg.payload_str());
+
+        std::string world_id = j.value("world_id", "");
+        bool force = j.value("force", false);
+
+        if (world_id.empty()) {
+            json response;
+            response["success"] = false;
+            response["error"] = "world_id required";
+            return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_WORLD_DESTROY, response.dump());
+        }
+
+        bool destroyed = world_engine_->destroy_world(world_id, force);
+
+        if (!destroyed) {
+            json response;
+            response["success"] = false;
+            response["error"] = "Failed to destroy world (not found or has active agents)";
+            return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_WORLD_DESTROY, response.dump());
+        }
+
+        spdlog::info("Agent {} destroyed world '{}'", msg.agent_id, world_id);
+
+        json response;
+        response["success"] = true;
+        response["world_id"] = world_id;
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_WORLD_DESTROY, response.dump());
+
+    } catch (const std::exception& e) {
+        json response;
+        response["success"] = false;
+        response["error"] = std::string("invalid request: ") + e.what();
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_WORLD_DESTROY, response.dump());
+    }
+}
+
+ipc::Message Kernel::handle_world_list(const ipc::Message& msg) {
+    auto worlds = world_engine_->list_worlds();
+
+    json response;
+    response["success"] = true;
+    response["worlds"] = worlds;
+    response["count"] = worlds.size();
+    return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_WORLD_LIST, response.dump());
+}
+
+ipc::Message Kernel::handle_world_join(const ipc::Message& msg) {
+    try {
+        json j = json::parse(msg.payload_str());
+
+        std::string world_id = j.value("world_id", "");
+
+        if (world_id.empty()) {
+            json response;
+            response["success"] = false;
+            response["error"] = "world_id required";
+            return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_WORLD_JOIN, response.dump());
+        }
+
+        bool joined = world_engine_->join_world(msg.agent_id, world_id);
+
+        if (!joined) {
+            json response;
+            response["success"] = false;
+            response["error"] = "Failed to join world (not found or already in a world)";
+            return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_WORLD_JOIN, response.dump());
+        }
+
+        spdlog::info("Agent {} joined world '{}'", msg.agent_id, world_id);
+
+        json response;
+        response["success"] = true;
+        response["world_id"] = world_id;
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_WORLD_JOIN, response.dump());
+
+    } catch (const std::exception& e) {
+        json response;
+        response["success"] = false;
+        response["error"] = std::string("invalid request: ") + e.what();
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_WORLD_JOIN, response.dump());
+    }
+}
+
+ipc::Message Kernel::handle_world_leave(const ipc::Message& msg) {
+    bool left = world_engine_->leave_world(msg.agent_id);
+
+    if (!left) {
+        json response;
+        response["success"] = false;
+        response["error"] = "Not in any world";
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_WORLD_LEAVE, response.dump());
+    }
+
+    spdlog::info("Agent {} left world", msg.agent_id);
+
+    json response;
+    response["success"] = true;
+    return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_WORLD_LEAVE, response.dump());
+}
+
+ipc::Message Kernel::handle_world_event(const ipc::Message& msg) {
+    try {
+        json j = json::parse(msg.payload_str());
+
+        std::string world_id = j.value("world_id", "");
+        std::string event_type = j.value("event_type", "");
+        json params = j.value("params", json::object());
+
+        if (world_id.empty()) {
+            json response;
+            response["success"] = false;
+            response["error"] = "world_id required";
+            return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_WORLD_EVENT, response.dump());
+        }
+
+        if (event_type.empty()) {
+            json response;
+            response["success"] = false;
+            response["error"] = "event_type required";
+            return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_WORLD_EVENT, response.dump());
+        }
+
+        bool injected = world_engine_->inject_event(world_id, event_type, params);
+
+        if (!injected) {
+            json response;
+            response["success"] = false;
+            response["error"] = "Failed to inject event (world not found)";
+            return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_WORLD_EVENT, response.dump());
+        }
+
+        spdlog::info("Agent {} injected chaos event '{}' into world '{}'",
+                     msg.agent_id, event_type, world_id);
+
+        json response;
+        response["success"] = true;
+        response["world_id"] = world_id;
+        response["event_type"] = event_type;
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_WORLD_EVENT, response.dump());
+
+    } catch (const std::exception& e) {
+        json response;
+        response["success"] = false;
+        response["error"] = std::string("invalid request: ") + e.what();
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_WORLD_EVENT, response.dump());
+    }
+}
+
+ipc::Message Kernel::handle_world_state(const ipc::Message& msg) {
+    try {
+        json j = json::parse(msg.payload_str());
+
+        std::string world_id = j.value("world_id", "");
+
+        if (world_id.empty()) {
+            json response;
+            response["success"] = false;
+            response["error"] = "world_id required";
+            return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_WORLD_STATE, response.dump());
+        }
+
+        auto state = world_engine_->get_world_state(world_id);
+
+        if (!state) {
+            json response;
+            response["success"] = false;
+            response["error"] = "World not found";
+            return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_WORLD_STATE, response.dump());
+        }
+
+        json response;
+        response["success"] = true;
+        response["state"] = *state;
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_WORLD_STATE, response.dump());
+
+    } catch (const std::exception& e) {
+        json response;
+        response["success"] = false;
+        response["error"] = std::string("invalid request: ") + e.what();
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_WORLD_STATE, response.dump());
+    }
+}
+
+ipc::Message Kernel::handle_world_snapshot(const ipc::Message& msg) {
+    try {
+        json j = json::parse(msg.payload_str());
+
+        std::string world_id = j.value("world_id", "");
+
+        if (world_id.empty()) {
+            json response;
+            response["success"] = false;
+            response["error"] = "world_id required";
+            return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_WORLD_SNAPSHOT, response.dump());
+        }
+
+        auto snapshot = world_engine_->snapshot_world(world_id);
+
+        if (!snapshot) {
+            json response;
+            response["success"] = false;
+            response["error"] = "World not found";
+            return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_WORLD_SNAPSHOT, response.dump());
+        }
+
+        spdlog::info("Agent {} created snapshot of world '{}'", msg.agent_id, world_id);
+
+        json response;
+        response["success"] = true;
+        response["snapshot"] = *snapshot;
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_WORLD_SNAPSHOT, response.dump());
+
+    } catch (const std::exception& e) {
+        json response;
+        response["success"] = false;
+        response["error"] = std::string("invalid request: ") + e.what();
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_WORLD_SNAPSHOT, response.dump());
+    }
+}
+
+ipc::Message Kernel::handle_world_restore(const ipc::Message& msg) {
+    try {
+        json j = json::parse(msg.payload_str());
+
+        json snapshot = j.value("snapshot", json{});
+        std::string new_world_id = j.value("new_world_id", "");
+
+        if (snapshot.empty()) {
+            json response;
+            response["success"] = false;
+            response["error"] = "snapshot required";
+            return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_WORLD_RESTORE, response.dump());
+        }
+
+        auto world_id = world_engine_->restore_world(snapshot, new_world_id);
+
+        if (!world_id) {
+            json response;
+            response["success"] = false;
+            response["error"] = "Failed to restore world";
+            return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_WORLD_RESTORE, response.dump());
+        }
+
+        spdlog::info("Agent {} restored world as '{}'", msg.agent_id, *world_id);
+
+        json response;
+        response["success"] = true;
+        response["world_id"] = *world_id;
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_WORLD_RESTORE, response.dump());
+
+    } catch (const std::exception& e) {
+        json response;
+        response["success"] = false;
+        response["error"] = std::string("invalid request: ") + e.what();
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_WORLD_RESTORE, response.dump());
+    }
+}
+
+// ============================================================================
+// World-Aware I/O Helpers
+// ============================================================================
+
+ipc::Message Kernel::handle_read_virtual(const ipc::Message& msg, World* world) {
+    try {
+        json j = json::parse(msg.payload_str());
+        std::string path = j.value("path", "");
+
+        // Record syscall
+        world->record_syscall();
+
+        // Check chaos injection
+        if (world->chaos().should_fail_read(path)) {
+            spdlog::debug("Chaos: Injected read failure for {} in world '{}'", path, world->id());
+            json response;
+            response["success"] = false;
+            response["error"] = "Simulated I/O failure (chaos)";
+            response["content"] = "";
+            response["size"] = 0;
+            response["world"] = world->id();
+            return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_READ, response.dump());
+        }
+
+        // Inject latency if configured
+        uint32_t latency = world->chaos().get_latency();
+        if (latency > 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(latency));
+        }
+
+        // Read from VFS
+        auto content = world->vfs().read(path);
+
+        if (!content) {
+            json response;
+            response["success"] = false;
+            response["error"] = "File not found in virtual filesystem";
+            response["content"] = "";
+            response["size"] = 0;
+            response["world"] = world->id();
+            return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_READ, response.dump());
+        }
+
+        spdlog::debug("Agent {} read {} bytes from VFS path {} in world '{}'",
+                      msg.agent_id, content->size(), path, world->id());
+
+        json response;
+        response["success"] = true;
+        response["content"] = *content;
+        response["size"] = content->size();
+        response["world"] = world->id();
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_READ, response.dump());
+
+    } catch (const std::exception& e) {
+        json response;
+        response["success"] = false;
+        response["error"] = std::string("invalid request: ") + e.what();
+        response["content"] = "";
+        response["size"] = 0;
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_READ, response.dump());
+    }
+}
+
+ipc::Message Kernel::handle_write_virtual(const ipc::Message& msg, World* world) {
+    try {
+        json j = json::parse(msg.payload_str());
+        std::string path = j.value("path", "");
+        std::string content = j.value("content", "");
+        std::string mode = j.value("mode", "write");
+
+        // Record syscall
+        world->record_syscall();
+
+        // Check chaos injection
+        if (world->chaos().should_fail_write(path)) {
+            spdlog::debug("Chaos: Injected write failure for {} in world '{}'", path, world->id());
+            json response;
+            response["success"] = false;
+            response["error"] = "Simulated I/O failure (chaos)";
+            response["bytes_written"] = 0;
+            response["world"] = world->id();
+            return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_WRITE, response.dump());
+        }
+
+        // Inject latency if configured
+        uint32_t latency = world->chaos().get_latency();
+        if (latency > 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(latency));
+        }
+
+        // Check if path is writable
+        if (!world->vfs().is_writable(path)) {
+            json response;
+            response["success"] = false;
+            response["error"] = "Path not writable in virtual filesystem";
+            response["bytes_written"] = 0;
+            response["world"] = world->id();
+            return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_WRITE, response.dump());
+        }
+
+        // Write to VFS
+        bool append = (mode == "append");
+        bool written = world->vfs().write(path, content, append);
+
+        if (!written) {
+            json response;
+            response["success"] = false;
+            response["error"] = "Failed to write to virtual filesystem";
+            response["bytes_written"] = 0;
+            response["world"] = world->id();
+            return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_WRITE, response.dump());
+        }
+
+        spdlog::debug("Agent {} wrote {} bytes to VFS path {} in world '{}' (mode={})",
+                      msg.agent_id, content.size(), path, world->id(), mode);
+
+        json response;
+        response["success"] = true;
+        response["bytes_written"] = content.size();
+        response["world"] = world->id();
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_WRITE, response.dump());
+
+    } catch (const std::exception& e) {
+        json response;
+        response["success"] = false;
+        response["error"] = std::string("invalid request: ") + e.what();
+        response["bytes_written"] = 0;
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_WRITE, response.dump());
+    }
+}
+
+ipc::Message Kernel::handle_http_virtual(const ipc::Message& msg, World* world) {
+    try {
+        json j = json::parse(msg.payload_str());
+        std::string method = j.value("method", "GET");
+        std::string url = j.value("url", "");
+
+        // Record syscall
+        world->record_syscall();
+
+        // Check chaos injection for network
+        if (world->chaos().should_fail_network(url)) {
+            spdlog::debug("Chaos: Injected network failure for {} in world '{}'", url, world->id());
+            json response;
+            response["success"] = false;
+            response["error"] = "Simulated network failure (chaos)";
+            response["body"] = "";
+            response["status_code"] = 503;
+            response["world"] = world->id();
+            return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_HTTP, response.dump());
+        }
+
+        // Get mock response
+        auto mock_response = world->network().get_response(url, method);
+
+        if (!mock_response) {
+            // Passthrough to real network (would need to call original handle_http logic)
+            // For now, just return an error indicating no mock available
+            json response;
+            response["success"] = false;
+            response["error"] = "No mock response configured for URL";
+            response["body"] = "";
+            response["status_code"] = 0;
+            response["world"] = world->id();
+            return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_HTTP, response.dump());
+        }
+
+        // Inject latency from mock response + chaos
+        uint32_t total_latency = mock_response->latency_ms + world->chaos().get_latency();
+        if (total_latency > 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(total_latency));
+        }
+
+        spdlog::debug("Agent {} got mock HTTP response for {} in world '{}': status={}",
+                      msg.agent_id, url, world->id(), mock_response->status_code);
+
+        json response;
+        response["success"] = (mock_response->status_code >= 200 && mock_response->status_code < 400);
+        response["body"] = mock_response->body;
+        response["status_code"] = mock_response->status_code;
+        response["headers"] = mock_response->headers;
+        response["world"] = world->id();
+        response["mocked"] = true;
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_HTTP, response.dump());
+
+    } catch (const std::exception& e) {
+        json response;
+        response["success"] = false;
+        response["error"] = std::string("invalid request: ") + e.what();
+        response["body"] = "";
+        response["status_code"] = 0;
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_HTTP, response.dump());
+    }
+}
+
+// ============================================================================
+// Tunnel Handlers
+// ============================================================================
+
+ipc::Message Kernel::handle_tunnel_connect(const ipc::Message& msg) {
+    try {
+        json j = json::parse(msg.payload_str());
+
+        // Allow overriding config via syscall
+        std::string relay_url = j.value("relay_url", config_.relay_url);
+        std::string machine_id = j.value("machine_id", config_.machine_id);
+        std::string token = j.value("token", config_.machine_token);
+
+        if (relay_url.empty()) {
+            json response;
+            response["success"] = false;
+            response["error"] = "relay_url required";
+            return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_TUNNEL_CONNECT, response.dump());
+        }
+
+        // Configure tunnel
+        TunnelConfig tc;
+        tc.relay_url = relay_url;
+        tc.machine_id = machine_id;
+        tc.token = token;
+        tunnel_client_->configure(tc);
+
+        // Connect
+        if (tunnel_client_->connect()) {
+            spdlog::info("Tunnel connected via syscall: {}", relay_url);
+            json response;
+            response["success"] = true;
+            response["relay_url"] = relay_url;
+            response["machine_id"] = machine_id;
+            return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_TUNNEL_CONNECT, response.dump());
+        } else {
+            json response;
+            response["success"] = false;
+            response["error"] = "Failed to connect to relay server";
+            return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_TUNNEL_CONNECT, response.dump());
+        }
+
+    } catch (const std::exception& e) {
+        json response;
+        response["success"] = false;
+        response["error"] = std::string("invalid request: ") + e.what();
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_TUNNEL_CONNECT, response.dump());
+    }
+}
+
+ipc::Message Kernel::handle_tunnel_disconnect(const ipc::Message& msg) {
+    tunnel_client_->disconnect();
+
+    json response;
+    response["success"] = true;
+    return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_TUNNEL_DISCONNECT, response.dump());
+}
+
+ipc::Message Kernel::handle_tunnel_status(const ipc::Message& msg) {
+    auto status = tunnel_client_->get_status();
+
+    json response;
+    response["success"] = true;
+    response["connected"] = status.connected;
+    response["relay_url"] = status.relay_url;
+    response["machine_id"] = status.machine_id;
+    response["remote_agent_count"] = status.remote_agent_count;
+
+    return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_TUNNEL_STATUS, response.dump());
+}
+
+ipc::Message Kernel::handle_tunnel_list_remotes(const ipc::Message& msg) {
+    auto agents = tunnel_client_->list_remote_agents();
+
+    json response;
+    response["success"] = true;
+    response["agents"] = json::array();
+
+    for (const auto& agent : agents) {
+        json a;
+        a["agent_id"] = agent.agent_id;
+        a["name"] = agent.name;
+        a["connected_at"] = agent.connected_at;
+        response["agents"].push_back(a);
+    }
+    response["count"] = agents.size();
+
+    return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_TUNNEL_LIST_REMOTES, response.dump());
+}
+
+ipc::Message Kernel::handle_tunnel_config(const ipc::Message& msg) {
+    try {
+        json j = json::parse(msg.payload_str());
+
+        TunnelConfig tc;
+        tc.relay_url = j.value("relay_url", config_.relay_url);
+        tc.machine_id = j.value("machine_id", config_.machine_id);
+        tc.token = j.value("token", config_.machine_token);
+        tc.reconnect_interval = j.value("reconnect_interval", 5);
+
+        if (tunnel_client_->configure(tc)) {
+            // Update kernel config
+            config_.relay_url = tc.relay_url;
+            config_.machine_id = tc.machine_id;
+            config_.machine_token = tc.token;
+
+            json response;
+            response["success"] = true;
+            return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_TUNNEL_CONFIG, response.dump());
+        } else {
+            json response;
+            response["success"] = false;
+            response["error"] = "Failed to configure tunnel";
+            return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_TUNNEL_CONFIG, response.dump());
+        }
+
+    } catch (const std::exception& e) {
+        json response;
+        response["success"] = false;
+        response["error"] = std::string("invalid request: ") + e.what();
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_TUNNEL_CONFIG, response.dump());
+    }
+}
+
+void Kernel::process_tunnel_events() {
+    auto events = tunnel_client_->poll_events();
+
+    for (const auto& event : events) {
+        switch (event.type) {
+            case TunnelEvent::Type::SYSCALL:
+                // Process syscall from remote agent
+                handle_tunnel_syscall(event.agent_id, event.opcode, event.payload);
+                break;
+
+            case TunnelEvent::Type::AGENT_CONNECTED:
+                // Remote agent connected - could emit kernel event
+                spdlog::info("Remote agent connected: {} (id={})",
+                            event.agent_name, event.agent_id);
+                break;
+
+            case TunnelEvent::Type::AGENT_DISCONNECTED:
+                spdlog::info("Remote agent disconnected: id={}", event.agent_id);
+                break;
+
+            case TunnelEvent::Type::DISCONNECTED:
+                spdlog::warn("Tunnel disconnected from relay");
+                break;
+
+            case TunnelEvent::Type::RECONNECTED:
+                spdlog::info("Tunnel reconnected to relay");
+                break;
+
+            case TunnelEvent::Type::ERROR:
+                spdlog::error("Tunnel error: {}", event.error);
+                break;
+        }
+    }
+}
+
+void Kernel::handle_tunnel_syscall(uint32_t agent_id, uint8_t opcode,
+                                  const std::vector<uint8_t>& payload) {
+    // Create a message as if it came from a local agent
+    ipc::Message msg;
+    msg.agent_id = agent_id;
+    msg.opcode = static_cast<ipc::SyscallOp>(opcode);
+    msg.payload = payload;
+
+    spdlog::debug("Processing syscall from remote agent {}: opcode=0x{:02x}",
+                  agent_id, opcode);
+
+    // Process the message
+    auto response = handle_message(msg);
+
+    // Send response back through tunnel
+    tunnel_client_->send_response(
+        agent_id,
+        static_cast<uint8_t>(response.opcode),
+        response.payload
+    );
 }
 
 } // namespace agentos::kernel
