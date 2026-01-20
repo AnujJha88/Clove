@@ -35,11 +35,21 @@ enum class SyscallOp : uint8_t {
     SYS_RECV      = 0x21,  // Receive pending messages
     SYS_BROADCAST = 0x22,  // Broadcast message to all agents
     SYS_REGISTER  = 0x23,  // Register agent name
+    // State Store
+    SYS_STORE     = 0x30,  // Store key-value pair
+    SYS_FETCH     = 0x31,  // Retrieve value by key
+    SYS_DELETE    = 0x32,  // Delete a key
+    SYS_KEYS      = 0x33,  // List keys with optional prefix
     // Permissions
     SYS_GET_PERMS = 0x40,  // Get own permissions
     SYS_SET_PERMS = 0x41,  // Set agent permissions (privileged)
     // Network
     SYS_HTTP      = 0x50,  // Make HTTP request
+    // Events (Pub/Sub)
+    SYS_SUBSCRIBE   = 0x60,  // Subscribe to event types
+    SYS_UNSUBSCRIBE = 0x61,  // Unsubscribe from events
+    SYS_POLL_EVENTS = 0x62,  // Get pending events
+    SYS_EMIT        = 0x63,  // Emit custom event
     SYS_EXIT   = 0xFF   // Graceful shutdown
 };
 
@@ -171,9 +181,17 @@ inline const char* opcode_to_string(SyscallOp op) {
         case SyscallOp::SYS_RECV:      return "RECV";
         case SyscallOp::SYS_BROADCAST: return "BROADCAST";
         case SyscallOp::SYS_REGISTER:  return "REGISTER";
+        case SyscallOp::SYS_STORE:     return "STORE";
+        case SyscallOp::SYS_FETCH:     return "FETCH";
+        case SyscallOp::SYS_DELETE:    return "DELETE";
+        case SyscallOp::SYS_KEYS:      return "KEYS";
         case SyscallOp::SYS_GET_PERMS: return "GET_PERMS";
         case SyscallOp::SYS_SET_PERMS: return "SET_PERMS";
         case SyscallOp::SYS_HTTP:      return "HTTP";
+        case SyscallOp::SYS_SUBSCRIBE:   return "SUBSCRIBE";
+        case SyscallOp::SYS_UNSUBSCRIBE: return "UNSUBSCRIBE";
+        case SyscallOp::SYS_POLL_EVENTS: return "POLL_EVENTS";
+        case SyscallOp::SYS_EMIT:        return "EMIT";
         case SyscallOp::SYS_EXIT:      return "EXIT";
         default: return "UNKNOWN";
     }

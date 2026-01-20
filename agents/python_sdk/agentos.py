@@ -33,11 +33,21 @@ class SyscallOp(IntEnum):
     SYS_RECV = 0x21       # Receive pending messages
     SYS_BROADCAST = 0x22  # Broadcast message to all agents
     SYS_REGISTER = 0x23   # Register agent name
+    # State Store
+    SYS_STORE = 0x30      # Store key-value pair
+    SYS_FETCH = 0x31      # Retrieve value by key
+    SYS_DELETE = 0x32     # Delete a key
+    SYS_KEYS = 0x33       # List keys with optional prefix
     # Permissions
     SYS_GET_PERMS = 0x40  # Get own permissions
     SYS_SET_PERMS = 0x41  # Set agent permissions
     # Network
     SYS_HTTP = 0x50       # Make HTTP request
+    # Events (Pub/Sub)
+    SYS_SUBSCRIBE = 0x60    # Subscribe to event types
+    SYS_UNSUBSCRIBE = 0x61  # Unsubscribe from events
+    SYS_POLL_EVENTS = 0x62  # Get pending events
+    SYS_EMIT = 0x63         # Emit custom event
     SYS_EXIT = 0xFF   # Graceful shutdown
 
 
@@ -501,6 +511,99 @@ class AgentOSClient:
         return {"success": False, "error": "No response from kernel"}
 
     # =========================================================================
+    # State Store
+    # =========================================================================
+
+    def store(self, key: str, value, scope: str = "global", ttl: int = None) -> dict:
+        """Store a key-value pair in the shared state store.
+
+        Args:
+            key: The key to store
+            value: The value to store (must be JSON-serializable)
+            scope: "global" (all agents), "agent" (only this agent), "session" (until restart)
+            ttl: Time-to-live in seconds (optional)
+
+        Returns:
+            dict with 'success', 'key'
+        """
+        import json
+        payload = {
+            "key": key,
+            "value": value,
+            "scope": scope
+        }
+        if ttl is not None:
+            payload["ttl"] = ttl
+
+        response = self.call(SyscallOp.SYS_STORE, json.dumps(payload))
+        if response:
+            try:
+                return json.loads(response.payload_str)
+            except json.JSONDecodeError:
+                return {"success": False, "error": response.payload_str}
+        return {"success": False, "error": "No response from kernel"}
+
+    def fetch(self, key: str) -> dict:
+        """Fetch a value from the shared state store.
+
+        Args:
+            key: The key to fetch
+
+        Returns:
+            dict with 'success', 'exists', 'value', 'scope'
+        """
+        import json
+        payload = {"key": key}
+
+        response = self.call(SyscallOp.SYS_FETCH, json.dumps(payload))
+        if response:
+            try:
+                return json.loads(response.payload_str)
+            except json.JSONDecodeError:
+                return {"success": False, "error": response.payload_str}
+        return {"success": False, "error": "No response from kernel"}
+
+    def delete_key(self, key: str) -> dict:
+        """Delete a key from the shared state store.
+
+        Args:
+            key: The key to delete
+
+        Returns:
+            dict with 'success', 'deleted'
+        """
+        import json
+        payload = {"key": key}
+
+        response = self.call(SyscallOp.SYS_DELETE, json.dumps(payload))
+        if response:
+            try:
+                return json.loads(response.payload_str)
+            except json.JSONDecodeError:
+                return {"success": False, "error": response.payload_str}
+        return {"success": False, "error": "No response from kernel"}
+
+    def list_keys(self, prefix: str = "") -> dict:
+        """List keys in the shared state store.
+
+        Args:
+            prefix: Optional prefix to filter keys
+
+        Returns:
+            dict with 'success', 'keys', 'count'
+        """
+        import json
+        payload = {"prefix": prefix} if prefix else {}
+
+        response = self.call(SyscallOp.SYS_KEYS, json.dumps(payload))
+        if response:
+            try:
+                return json.loads(response.payload_str)
+            except json.JSONDecodeError:
+                return {"success": False, "error": response.payload_str}
+        return {"success": False, "error": "No response from kernel"}
+
+    # =========================================================================
     # HTTP
     # =========================================================================
 
@@ -540,6 +643,97 @@ class AgentOSClient:
             except json.JSONDecodeError:
                 return {"success": False, "body": "", "error": response.payload_str}
         return {"success": False, "body": "", "error": "No response from kernel"}
+
+    # =========================================================================
+    # Events (Pub/Sub)
+    # =========================================================================
+
+    def subscribe(self, event_types: list) -> dict:
+        """Subscribe to kernel events.
+
+        Args:
+            event_types: List of event types to subscribe to.
+                Available: "AGENT_SPAWNED", "AGENT_EXITED", "MESSAGE_RECEIVED",
+                          "STATE_CHANGED", "SYSCALL_BLOCKED", "RESOURCE_WARNING", "CUSTOM"
+
+        Returns:
+            dict with 'success', 'subscribed' (list of types)
+        """
+        import json
+        payload = {"event_types": event_types}
+
+        response = self.call(SyscallOp.SYS_SUBSCRIBE, json.dumps(payload))
+        if response:
+            try:
+                return json.loads(response.payload_str)
+            except json.JSONDecodeError:
+                return {"success": False, "error": response.payload_str}
+        return {"success": False, "error": "No response from kernel"}
+
+    def unsubscribe(self, event_types: list) -> dict:
+        """Unsubscribe from kernel events.
+
+        Args:
+            event_types: List of event types to unsubscribe from
+
+        Returns:
+            dict with 'success', 'unsubscribed' (list of types)
+        """
+        import json
+        payload = {"event_types": event_types}
+
+        response = self.call(SyscallOp.SYS_UNSUBSCRIBE, json.dumps(payload))
+        if response:
+            try:
+                return json.loads(response.payload_str)
+            except json.JSONDecodeError:
+                return {"success": False, "error": response.payload_str}
+        return {"success": False, "error": "No response from kernel"}
+
+    def poll_events(self, max_events: int = 10) -> dict:
+        """Poll for pending events.
+
+        Args:
+            max_events: Maximum number of events to retrieve (default: 10)
+
+        Returns:
+            dict with 'success', 'events' (list), 'count'
+            Each event has: 'type', 'data', 'source_agent_id', 'age_ms'
+        """
+        import json
+        payload = {"max": max_events}
+
+        response = self.call(SyscallOp.SYS_POLL_EVENTS, json.dumps(payload))
+        if response:
+            try:
+                return json.loads(response.payload_str)
+            except json.JSONDecodeError:
+                return {"success": False, "events": [], "count": 0, "error": response.payload_str}
+        return {"success": False, "events": [], "count": 0, "error": "No response from kernel"}
+
+    def emit_event(self, event_type: str, data: dict = None) -> dict:
+        """Emit a custom event to all subscribers.
+
+        Args:
+            event_type: Should be "CUSTOM" for user events
+            data: Event data payload
+
+        Returns:
+            dict with 'success', 'delivered_to' (count)
+        """
+        import json
+        payload = {
+            "event_type": event_type,
+            "data": data or {}
+        }
+
+        response = self.call(SyscallOp.SYS_EMIT, json.dumps(payload))
+        if response:
+            try:
+                return json.loads(response.payload_str)
+            except json.JSONDecodeError:
+                return {"success": False, "error": response.payload_str}
+        return {"success": False, "error": "No response from kernel"}
 
     def __enter__(self):
         self.connect()

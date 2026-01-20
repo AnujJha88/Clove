@@ -215,6 +215,19 @@ ipc::Message Kernel::handle_message(const ipc::Message& msg) {
         case ipc::SyscallOp::SYS_REGISTER:
             return handle_register(msg);
 
+        // State Store syscalls
+        case ipc::SyscallOp::SYS_STORE:
+            return handle_store(msg);
+
+        case ipc::SyscallOp::SYS_FETCH:
+            return handle_fetch(msg);
+
+        case ipc::SyscallOp::SYS_DELETE:
+            return handle_delete(msg);
+
+        case ipc::SyscallOp::SYS_KEYS:
+            return handle_keys(msg);
+
         // Permission syscalls
         case ipc::SyscallOp::SYS_GET_PERMS:
             return handle_get_perms(msg);
@@ -225,6 +238,19 @@ ipc::Message Kernel::handle_message(const ipc::Message& msg) {
         // Network syscalls
         case ipc::SyscallOp::SYS_HTTP:
             return handle_http(msg);
+
+        // Event syscalls
+        case ipc::SyscallOp::SYS_SUBSCRIBE:
+            return handle_subscribe(msg);
+
+        case ipc::SyscallOp::SYS_UNSUBSCRIBE:
+            return handle_unsubscribe(msg);
+
+        case ipc::SyscallOp::SYS_POLL_EVENTS:
+            return handle_poll_events(msg);
+
+        case ipc::SyscallOp::SYS_EMIT:
+            return handle_emit(msg);
 
         default:
             spdlog::warn("Unknown opcode: 0x{:02x}", static_cast<uint8_t>(msg.opcode));
@@ -336,6 +362,14 @@ ipc::Message Kernel::handle_spawn(const ipc::Message& msg) {
         response["pid"] = agent->pid();
         response["status"] = "running";
 
+        // Emit AGENT_SPAWNED event
+        json event_data;
+        event_data["agent_id"] = agent->id();
+        event_data["name"] = agent->name();
+        event_data["pid"] = agent->pid();
+        event_data["parent_id"] = msg.agent_id;
+        emit_event(KernelEventType::AGENT_SPAWNED, event_data, 0);
+
         return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_SPAWN, response.dump());
 
     } catch (const std::exception& e) {
@@ -350,14 +384,34 @@ ipc::Message Kernel::handle_kill(const ipc::Message& msg) {
         json j = json::parse(msg.payload_str());
 
         bool killed = false;
+        uint32_t target_id = 0;
+        std::string target_name;
+
+        // Get agent info before killing
         if (j.contains("id")) {
-            killed = agent_manager_->kill_agent(j["id"].get<uint32_t>());
+            target_id = j["id"].get<uint32_t>();
+            auto agent = agent_manager_->get_agent(target_id);
+            if (agent) target_name = agent->name();
+            killed = agent_manager_->kill_agent(target_id);
         } else if (j.contains("name")) {
-            killed = agent_manager_->kill_agent(j["name"].get<std::string>());
+            target_name = j["name"].get<std::string>();
+            auto agent = agent_manager_->get_agent(target_name);
+            if (agent) target_id = agent->id();
+            killed = agent_manager_->kill_agent(target_name);
+        }
+
+        // Emit AGENT_EXITED event if killed
+        if (killed && target_id > 0) {
+            json event_data;
+            event_data["agent_id"] = target_id;
+            event_data["name"] = target_name;
+            event_data["killed_by"] = msg.agent_id;
+            emit_event(KernelEventType::AGENT_EXITED, event_data, 0);
         }
 
         json response;
         response["killed"] = killed;
+        response["agent_id"] = target_id;
 
         return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_KILL, response.dump());
 
@@ -991,6 +1045,435 @@ ipc::Message Kernel::handle_http(const ipc::Message& msg) {
         response["success"] = false;
         response["error"] = std::string("invalid request: ") + e.what();
         return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_HTTP, response.dump());
+    }
+}
+
+// State Store: check if agent can access a key based on scope
+bool Kernel::can_access_key(uint32_t agent_id, const std::string& key, const StoredValue& value) const {
+    if (value.scope == "global") return true;
+    if (value.scope == "agent" && value.owner_agent_id == agent_id) return true;
+    if (value.scope == "session") return true;  // Session scope = accessible to all in this kernel session
+    return false;
+}
+
+// State Store: STORE syscall
+ipc::Message Kernel::handle_store(const ipc::Message& msg) {
+    try {
+        json j = json::parse(msg.payload_str());
+
+        std::string key = j.value("key", "");
+        if (key.empty()) {
+            json response;
+            response["success"] = false;
+            response["error"] = "key is required";
+            return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_STORE, response.dump());
+        }
+
+        StoredValue entry;
+        entry.value = j.value("value", json{});
+        entry.owner_agent_id = msg.agent_id;
+        entry.scope = j.value("scope", "global");
+
+        // Handle TTL
+        if (j.contains("ttl") && j["ttl"].is_number()) {
+            int ttl_secs = j["ttl"].get<int>();
+            entry.expires_at = std::chrono::steady_clock::now() + std::chrono::seconds(ttl_secs);
+        }
+
+        // Validate scope
+        if (entry.scope != "global" && entry.scope != "agent" && entry.scope != "session") {
+            entry.scope = "global";
+        }
+
+        // For agent scope, prefix the key with agent_id
+        std::string store_key = key;
+        if (entry.scope == "agent") {
+            store_key = "agent:" + std::to_string(msg.agent_id) + ":" + key;
+        }
+
+        {
+            std::lock_guard<std::mutex> lock(state_store_mutex_);
+            state_store_[store_key] = std::move(entry);
+        }
+
+        spdlog::debug("Agent {} stored key '{}' (scope={})", msg.agent_id, key, entry.scope);
+
+        // Emit STATE_CHANGED event for global scope keys
+        if (entry.scope == "global") {
+            json event_data;
+            event_data["key"] = key;
+            event_data["action"] = "store";
+            event_data["agent_id"] = msg.agent_id;
+            emit_event(KernelEventType::STATE_CHANGED, event_data, msg.agent_id);
+        }
+
+        json response;
+        response["success"] = true;
+        response["key"] = key;
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_STORE, response.dump());
+
+    } catch (const std::exception& e) {
+        json response;
+        response["success"] = false;
+        response["error"] = std::string("invalid request: ") + e.what();
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_STORE, response.dump());
+    }
+}
+
+// State Store: FETCH syscall
+ipc::Message Kernel::handle_fetch(const ipc::Message& msg) {
+    try {
+        json j = json::parse(msg.payload_str());
+
+        std::string key = j.value("key", "");
+        if (key.empty()) {
+            json response;
+            response["success"] = false;
+            response["error"] = "key is required";
+            return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_FETCH, response.dump());
+        }
+
+        // Try both global key and agent-scoped key
+        std::vector<std::string> keys_to_try = {
+            key,
+            "agent:" + std::to_string(msg.agent_id) + ":" + key
+        };
+
+        std::lock_guard<std::mutex> lock(state_store_mutex_);
+
+        for (const auto& try_key : keys_to_try) {
+            auto it = state_store_.find(try_key);
+            if (it != state_store_.end()) {
+                // Check expiration
+                if (it->second.is_expired()) {
+                    state_store_.erase(it);
+                    continue;
+                }
+
+                // Check access
+                if (!can_access_key(msg.agent_id, try_key, it->second)) {
+                    continue;
+                }
+
+                json response;
+                response["success"] = true;
+                response["exists"] = true;
+                response["value"] = it->second.value;
+                response["scope"] = it->second.scope;
+                return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_FETCH, response.dump());
+            }
+        }
+
+        // Key not found
+        json response;
+        response["success"] = true;
+        response["exists"] = false;
+        response["value"] = nullptr;
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_FETCH, response.dump());
+
+    } catch (const std::exception& e) {
+        json response;
+        response["success"] = false;
+        response["error"] = std::string("invalid request: ") + e.what();
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_FETCH, response.dump());
+    }
+}
+
+// State Store: DELETE syscall
+ipc::Message Kernel::handle_delete(const ipc::Message& msg) {
+    try {
+        json j = json::parse(msg.payload_str());
+
+        std::string key = j.value("key", "");
+        if (key.empty()) {
+            json response;
+            response["success"] = false;
+            response["error"] = "key is required";
+            return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_DELETE, response.dump());
+        }
+
+        // Try both global key and agent-scoped key
+        std::vector<std::string> keys_to_try = {
+            key,
+            "agent:" + std::to_string(msg.agent_id) + ":" + key
+        };
+
+        std::lock_guard<std::mutex> lock(state_store_mutex_);
+
+        bool deleted = false;
+        for (const auto& try_key : keys_to_try) {
+            auto it = state_store_.find(try_key);
+            if (it != state_store_.end()) {
+                // Only owner can delete (or global scope)
+                if (it->second.owner_agent_id == msg.agent_id || it->second.scope == "global") {
+                    state_store_.erase(it);
+                    deleted = true;
+                    spdlog::debug("Agent {} deleted key '{}'", msg.agent_id, key);
+                    break;
+                }
+            }
+        }
+
+        json response;
+        response["success"] = true;
+        response["deleted"] = deleted;
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_DELETE, response.dump());
+
+    } catch (const std::exception& e) {
+        json response;
+        response["success"] = false;
+        response["error"] = std::string("invalid request: ") + e.what();
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_DELETE, response.dump());
+    }
+}
+
+// State Store: KEYS syscall
+ipc::Message Kernel::handle_keys(const ipc::Message& msg) {
+    try {
+        json j;
+        if (!msg.payload.empty()) {
+            j = json::parse(msg.payload_str());
+        }
+
+        std::string prefix = j.value("prefix", "");
+
+        std::lock_guard<std::mutex> lock(state_store_mutex_);
+
+        std::vector<std::string> keys;
+        for (auto it = state_store_.begin(); it != state_store_.end(); ) {
+            // Clean up expired entries
+            if (it->second.is_expired()) {
+                it = state_store_.erase(it);
+                continue;
+            }
+
+            // Check access
+            if (!can_access_key(msg.agent_id, it->first, it->second)) {
+                ++it;
+                continue;
+            }
+
+            // Check prefix match
+            const std::string& key = it->first;
+            if (prefix.empty() || key.find(prefix) == 0) {
+                // For agent-scoped keys, strip the prefix when returning
+                if (key.find("agent:") == 0) {
+                    size_t second_colon = key.find(':', 6);
+                    if (second_colon != std::string::npos) {
+                        keys.push_back(key.substr(second_colon + 1));
+                    } else {
+                        keys.push_back(key);
+                    }
+                } else {
+                    keys.push_back(key);
+                }
+            }
+            ++it;
+        }
+
+        json response;
+        response["success"] = true;
+        response["keys"] = keys;
+        response["count"] = keys.size();
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_KEYS, response.dump());
+
+    } catch (const std::exception& e) {
+        json response;
+        response["success"] = false;
+        response["error"] = std::string("invalid request: ") + e.what();
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_KEYS, response.dump());
+    }
+}
+
+// Events: emit an event to all subscribed agents
+void Kernel::emit_event(KernelEventType type, const nlohmann::json& data, uint32_t source_agent_id) {
+    std::lock_guard<std::mutex> lock(events_mutex_);
+
+    KernelEvent event;
+    event.type = type;
+    event.data = data;
+    event.timestamp = std::chrono::steady_clock::now();
+    event.source_agent_id = source_agent_id;
+
+    // Deliver to all subscribed agents
+    for (const auto& [agent_id, subscriptions] : event_subscriptions_) {
+        if (subscriptions.count(type) > 0) {
+            event_queues_[agent_id].push(event);
+            spdlog::debug("Event {} queued for agent {}", kernel_event_type_to_string(type), agent_id);
+        }
+    }
+}
+
+// Events: SUBSCRIBE syscall
+ipc::Message Kernel::handle_subscribe(const ipc::Message& msg) {
+    try {
+        json j = json::parse(msg.payload_str());
+
+        std::vector<std::string> event_types;
+        if (j.contains("events") && j["events"].is_array()) {
+            for (const auto& e : j["events"]) {
+                event_types.push_back(e.get<std::string>());
+            }
+        } else if (j.contains("event")) {
+            event_types.push_back(j["event"].get<std::string>());
+        }
+
+        if (event_types.empty()) {
+            json response;
+            response["success"] = false;
+            response["error"] = "No events specified";
+            return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_SUBSCRIBE, response.dump());
+        }
+
+        std::lock_guard<std::mutex> lock(events_mutex_);
+
+        auto& subs = event_subscriptions_[msg.agent_id];
+        for (const auto& event_str : event_types) {
+            KernelEventType type = kernel_event_type_from_string(event_str);
+            subs.insert(type);
+        }
+
+        spdlog::debug("Agent {} subscribed to {} event type(s)", msg.agent_id, event_types.size());
+
+        json response;
+        response["success"] = true;
+        response["subscribed"] = event_types;
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_SUBSCRIBE, response.dump());
+
+    } catch (const std::exception& e) {
+        json response;
+        response["success"] = false;
+        response["error"] = std::string("invalid request: ") + e.what();
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_SUBSCRIBE, response.dump());
+    }
+}
+
+// Events: UNSUBSCRIBE syscall
+ipc::Message Kernel::handle_unsubscribe(const ipc::Message& msg) {
+    try {
+        json j = json::parse(msg.payload_str());
+
+        std::vector<std::string> event_types;
+        bool unsubscribe_all = j.value("all", false);
+
+        if (!unsubscribe_all) {
+            if (j.contains("events") && j["events"].is_array()) {
+                for (const auto& e : j["events"]) {
+                    event_types.push_back(e.get<std::string>());
+                }
+            } else if (j.contains("event")) {
+                event_types.push_back(j["event"].get<std::string>());
+            }
+        }
+
+        std::lock_guard<std::mutex> lock(events_mutex_);
+
+        if (unsubscribe_all) {
+            event_subscriptions_.erase(msg.agent_id);
+            spdlog::debug("Agent {} unsubscribed from all events", msg.agent_id);
+        } else {
+            auto it = event_subscriptions_.find(msg.agent_id);
+            if (it != event_subscriptions_.end()) {
+                for (const auto& event_str : event_types) {
+                    KernelEventType type = kernel_event_type_from_string(event_str);
+                    it->second.erase(type);
+                }
+            }
+            spdlog::debug("Agent {} unsubscribed from {} event type(s)", msg.agent_id, event_types.size());
+        }
+
+        json response;
+        response["success"] = true;
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_UNSUBSCRIBE, response.dump());
+
+    } catch (const std::exception& e) {
+        json response;
+        response["success"] = false;
+        response["error"] = std::string("invalid request: ") + e.what();
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_UNSUBSCRIBE, response.dump());
+    }
+}
+
+// Events: POLL_EVENTS syscall
+ipc::Message Kernel::handle_poll_events(const ipc::Message& msg) {
+    try {
+        json j;
+        if (!msg.payload.empty()) {
+            j = json::parse(msg.payload_str());
+        }
+
+        int max_events = j.value("max", 100);
+
+        std::lock_guard<std::mutex> lock(events_mutex_);
+
+        json events_array = json::array();
+        auto it = event_queues_.find(msg.agent_id);
+
+        if (it != event_queues_.end()) {
+            auto& queue = it->second;
+            int count = 0;
+
+            while (!queue.empty() && count < max_events) {
+                const auto& event = queue.front();
+
+                json event_json;
+                event_json["type"] = kernel_event_type_to_string(event.type);
+                event_json["data"] = event.data;
+                event_json["source_agent_id"] = event.source_agent_id;
+
+                // Convert timestamp to milliseconds since epoch
+                auto duration = event.timestamp.time_since_epoch();
+                auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+                event_json["timestamp"] = millis;
+
+                events_array.push_back(event_json);
+                queue.pop();
+                count++;
+            }
+        }
+
+        json response;
+        response["success"] = true;
+        response["events"] = events_array;
+        response["count"] = events_array.size();
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_POLL_EVENTS, response.dump());
+
+    } catch (const std::exception& e) {
+        json response;
+        response["success"] = false;
+        response["error"] = std::string("invalid request: ") + e.what();
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_POLL_EVENTS, response.dump());
+    }
+}
+
+// Events: EMIT syscall (custom events from agents)
+ipc::Message Kernel::handle_emit(const ipc::Message& msg) {
+    try {
+        json j = json::parse(msg.payload_str());
+
+        std::string event_name = j.value("event", "CUSTOM");
+        json event_data = j.value("data", json{});
+
+        // Only allow CUSTOM events from agents
+        KernelEventType type = KernelEventType::CUSTOM;
+        if (event_name != "CUSTOM") {
+            event_data["custom_type"] = event_name;
+        }
+
+        emit_event(type, event_data, msg.agent_id);
+
+        spdlog::debug("Agent {} emitted event: {}", msg.agent_id, event_name);
+
+        json response;
+        response["success"] = true;
+        response["event"] = event_name;
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_EMIT, response.dump());
+
+    } catch (const std::exception& e) {
+        json response;
+        response["success"] = false;
+        response["error"] = std::string("invalid request: ") + e.what();
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_EMIT, response.dump());
     }
 }
 

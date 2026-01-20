@@ -65,43 +65,45 @@
 
 **Levels**: `unrestricted`, `standard`, `sandboxed`, `readonly`, `minimal`
 
+### State Store
+
+| Op | Name | Payload | Response |
+|----|------|---------|----------|
+| `0x30` | STORE | `{"key", "value", "scope?", "ttl?"}` | `{"success", "key"}` |
+| `0x31` | FETCH | `{"key"}` | `{"success", "exists", "value", "scope"}` |
+| `0x32` | DELETE | `{"key"}` | `{"success", "deleted"}` |
+| `0x33` | KEYS | `{"prefix?"}` | `{"success", "keys", "count"}` |
+
+**Scopes**: `global` (all agents), `agent` (private), `session` (until restart)
+
 ### Network
 
 | Op | Name | Payload | Response |
 |----|------|---------|----------|
 | `0x50` | HTTP | `{"url", "method?", "headers?", "body?", "timeout?"}` | `{"success", "status_code", "body"}` |
 
+### Events (Pub/Sub)
+
+| Op | Name | Payload | Response |
+|----|------|---------|----------|
+| `0x60` | SUBSCRIBE | `{"event_types": [...]}` | `{"success", "subscribed": [...]}` |
+| `0x61` | UNSUBSCRIBE | `{"event_types": [...]}` | `{"success", "unsubscribed": [...]}` |
+| `0x62` | POLL_EVENTS | `{"max?"}` | `{"success", "events": [...], "count"}` |
+| `0x63` | EMIT | `{"event_type", "data"}` | `{"success", "delivered_to"}` |
+
+**Event types**: `AGENT_SPAWNED`, `AGENT_EXITED`, `MESSAGE_RECEIVED`, `STATE_CHANGED`, `SYSCALL_BLOCKED`, `RESOURCE_WARNING`, `CUSTOM`
+
+**Event structure**: `{"type", "data", "source_agent_id", "age_ms"}`
+
 ---
 
 ## Future Syscalls
-
-### State Store (Phase 2)
-
-| Op | Name | Description |
-|----|------|-------------|
-| `0x30` | STORE | Store key-value pair |
-| `0x31` | FETCH | Retrieve value by key |
-| `0x32` | DELETE | Delete a key |
-| `0x33` | KEYS | List keys with optional prefix |
-
-**Scopes**: `global` (all agents), `agent` (private), `session` (until restart)
 
 ### Network Extended
 
 | Op | Name | Description |
 |----|------|-------------|
 | `0x51` | DOWNLOAD | Download file from URL to path |
-
-### Events (Phase 5)
-
-| Op | Name | Description |
-|----|------|-------------|
-| `0x60` | SUBSCRIBE | Subscribe to event types |
-| `0x61` | UNSUBSCRIBE | Unsubscribe from events |
-| `0x62` | POLL_EVENTS | Get pending events |
-| `0x63` | EMIT | Emit custom event |
-
-**Event types**: `AGENT_SPAWNED`, `AGENT_EXITED`, `FILE_CHANGED`, `MESSAGE_RECEIVED`, `SYSCALL_BLOCKED`, `RESOURCE_WARNING`, `CUSTOM`
 
 ### Remote Tunnel (Phase 6)
 
@@ -163,5 +165,13 @@ with AgentOSClient() as c:
     c.broadcast({"event": "done"})              # BROADCAST
     c.get_permissions()                         # GET_PERMS
     c.set_permissions(level="sandboxed")        # SET_PERMS
+    c.store("key", {"value": 123})              # STORE
+    c.fetch("key")                              # FETCH
+    c.delete_key("key")                         # DELETE
+    c.list_keys("prefix:")                      # KEYS
     c.http("https://api.example.com/data")      # HTTP
+    c.subscribe(["AGENT_SPAWNED", "CUSTOM"])    # SUBSCRIBE
+    c.poll_events()                             # POLL_EVENTS
+    c.emit_event("CUSTOM", {"msg": "hello"})    # EMIT
+    c.unsubscribe(["CUSTOM"])                   # UNSUBSCRIBE
 ```

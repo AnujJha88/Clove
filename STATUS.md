@@ -12,6 +12,50 @@
 
 ## Recent Additions (2026-01-20)
 
+### Events (Pub/Sub) System **NEW**
+
+Kernel-level event system for agent coordination and notifications.
+
+**Syscalls:**
+- `SYS_SUBSCRIBE` (0x60) - Subscribe to event types
+- `SYS_UNSUBSCRIBE` (0x61) - Unsubscribe from events
+- `SYS_POLL_EVENTS` (0x62) - Get pending events
+- `SYS_EMIT` (0x63) - Emit custom events
+
+**Event Types:**
+- `AGENT_SPAWNED` - Emitted when an agent is spawned
+- `AGENT_EXITED` - Emitted when an agent is killed
+- `MESSAGE_RECEIVED` - IPC message notification
+- `STATE_CHANGED` - State store key modified
+- `SYSCALL_BLOCKED` - Permission denied
+- `RESOURCE_WARNING` - Approaching resource limits
+- `CUSTOM` - User-defined events
+
+**Usage:**
+```python
+# Subscribe to events
+client.subscribe(["AGENT_SPAWNED", "AGENT_EXITED", "CUSTOM"])
+
+# Poll for events
+events = client.poll_events(max_events=10)
+for event in events["events"]:
+    print(f"{event['type']}: {event['data']}")
+
+# Emit custom event
+client.emit_event("CUSTOM", {"msg": "task_complete"})
+```
+
+### State Store **NEW**
+
+Shared key-value storage for agent coordination.
+
+**Syscalls:** `SYS_STORE`, `SYS_FETCH`, `SYS_DELETE`, `SYS_KEYS` (0x30-0x33)
+
+**Features:**
+- Scopes: `global`, `agent` (private), `session`
+- TTL support for automatic expiration
+- Prefix-based key listing
+
 ### Web Dashboard **NEW**
 
 Real-time browser-based monitoring dashboard for AgentOS agents.

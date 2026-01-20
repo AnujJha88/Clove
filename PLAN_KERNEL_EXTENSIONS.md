@@ -503,15 +503,15 @@ When quota exceeded:
 | Phase | Priority | Effort | Status |
 |-------|----------|--------|--------|
 | Phase 1: IPC | High | Medium | ✅ COMPLETE |
-| Phase 2: State Store | High | Low | Pending |
+| Phase 2: State Store | High | Low | ✅ COMPLETE |
 | Phase 3: Permissions | Medium | Medium | ✅ COMPLETE |
 | Phase 4: Network | Medium | Low | ✅ COMPLETE |
-| Phase 5: Events | Medium | Medium | Pending |
+| Phase 5: Events | Medium | Medium | ✅ COMPLETE |
 | Phase 6: Remote | High | High | Pending |
 | Phase 7: Orchestration | Low | Medium | Pending |
 | Phase 8: Quotas | Low | Medium | Pending |
 
-**Next priority:** Phase 2 (State Store) or Phase 6 (Remote Connectivity)
+**Next priority:** Phase 6 (Remote Connectivity) or Phase 7 (Orchestration)
 
 ---
 
@@ -554,9 +554,263 @@ agents/
 
 **Up Next:**
 1. **Phase 2: State Store** - Shared key-value storage for agent coordination
-2. **Phase 6: Remote Connectivity** - Cloud agents connecting to local kernel via relay
-3. **Phase 5: Events** - Pub/sub event system for agent notifications
+2. **Phase 5: Events** - Pub/sub event system for agent notifications
+3. **Phase 6: Remote Connectivity** - Cloud agents connecting to local kernel via relay
 
 **Also Implemented (not in original plan):**
 - Web Dashboard - Real-time browser monitoring UI
 - Agentic Loop Framework - Claude Code-style autonomous agent execution
+- Agent Monitor (htop-style) - Terminal UI for agent monitoring
+
+---
+
+## Phase 9: World Engine (Simulation Environments)
+
+**Goal:** Create isolated, configurable environments ("worlds") where agents can operate without affecting real systems. Essential for training, testing, and safe experimentation.
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           WORLD ENGINE                                   │
+│  ┌─────────────────────────────────────────────────────────────────┐    │
+│  │                      World Controller                            │    │
+│  │   - Creates/destroys world instances                            │    │
+│  │   - Manages virtual filesystems                                  │    │
+│  │   - Injects events (failures, latency)                          │    │
+│  │   - Tracks agent actions for replay                             │    │
+│  └──────────────────────────────┬──────────────────────────────────┘    │
+│                                 │                                        │
+│    ┌────────────────────────────┼────────────────────────────────┐      │
+│    ▼                            ▼                                ▼      │
+│ ┌──────────────┐    ┌──────────────────┐    ┌──────────────────┐       │
+│ │  WORLD: Dev  │    │ WORLD: Staging   │    │ WORLD: Chaos     │       │
+│ │  - Fake FS   │    │  - Mock APIs     │    │  - Random fails  │       │
+│ │  - No network│    │  - Test DB       │    │  - OOM events    │       │
+│ └──────────────┘    └──────────────────┘    └──────────────────┘       │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### World Definition Format
+
+```yaml
+# worlds/chaos_production.yaml
+name: chaos-production
+description: "Simulated production with chaos events"
+
+filesystem:
+  # Mirror a real directory (copy-on-write)
+  /app:
+    type: mirror
+    source: ./my-application/
+    writable: true
+
+  # Virtual files (generated)
+  /var/log:
+    type: virtual
+    files:
+      - name: app.log
+        generator: random_logs    # or static content
+        error_rate: 0.1
+
+  # Read-only mount
+  /etc/config:
+    type: readonly
+    source: ./configs/production/
+
+network:
+  # Allowed external hosts (others blocked)
+  allowed_hosts:
+    - api.internal.test
+    - db.internal.test
+
+  # Mock responses
+  mocks:
+    - pattern: "GET api.internal.test/health"
+      response: { "status": "healthy" }
+      latency_ms: 50
+
+    - pattern: "POST api.internal.test/restart"
+      response: { "success": true }
+      fail_rate: 0.1  # 10% chance of failure
+
+  # Global network settings
+  base_latency_ms: 20
+  jitter_ms: 10
+  packet_loss: 0.01
+
+events:
+  # Scheduled chaos events
+  - at: "+30s"
+    type: service_crash
+    target: worker-1
+
+  - at: "+1m"
+    type: cpu_spike
+    value: 95
+    duration: 30s
+
+  - at: "+2m"
+    type: network_partition
+    targets: [worker-1, worker-2]
+    duration: 15s
+
+  - at: "+3m"
+    type: memory_pressure
+    value: 90
+
+  - at: "random"           # Random timing
+    type: disk_full
+    probability: 0.05      # 5% chance per minute
+
+resources:
+  memory_limit: 1GB
+  cpu_limit: 200%          # 2 cores
+  max_agents: 20
+  max_files: 10000
+  disk_quota: 5GB
+
+scoring:
+  # Optional: score agent performance
+  objectives:
+    - name: uptime
+      weight: 0.4
+    - name: response_time
+      target_ms: 100
+      weight: 0.3
+    - name: errors_handled
+      weight: 0.3
+```
+
+### New Syscalls
+
+| Syscall | Opcode | Description |
+|---------|--------|-------------|
+| `SYS_WORLD_CREATE` | `0xA0` | Create a new world from config |
+| `SYS_WORLD_DESTROY` | `0xA1` | Destroy a world and cleanup |
+| `SYS_WORLD_LIST` | `0xA2` | List active worlds |
+| `SYS_WORLD_JOIN` | `0xA3` | Join an agent to a world |
+| `SYS_WORLD_LEAVE` | `0xA4` | Remove agent from world |
+| `SYS_WORLD_EVENT` | `0xA5` | Inject event into world |
+| `SYS_WORLD_STATE` | `0xA6` | Get world state/metrics |
+| `SYS_WORLD_SNAPSHOT` | `0xA7` | Save world state |
+| `SYS_WORLD_RESTORE` | `0xA8` | Restore from snapshot |
+
+### World Types (Presets)
+
+| Preset | Use Case | Features |
+|--------|----------|----------|
+| `dev` | Development | Fake FS, no network, fast |
+| `staging` | Integration | Mock APIs, test data |
+| `chaos` | Resilience | Random failures, latency |
+| `shadow` | Production mirror | Read-only prod copy |
+| `benchmark` | Performance | Metrics, scoring |
+| `training` | Agent training | Curriculum of scenarios |
+
+### Implementation
+
+**Kernel-side:**
+```cpp
+// src/kernel/world_engine.hpp
+struct World {
+    uint64_t id;
+    std::string name;
+    WorldConfig config;
+
+    VirtualFilesystem vfs;
+    NetworkSimulator network;
+    EventScheduler events;
+
+    std::set<uint32_t> agent_ids;
+    std::chrono::steady_clock::time_point created_at;
+
+    WorldMetrics metrics;
+};
+
+class WorldEngine {
+public:
+    uint64_t create_world(const WorldConfig& config);
+    void destroy_world(uint64_t world_id);
+    void join_agent(uint64_t world_id, uint32_t agent_id);
+    void inject_event(uint64_t world_id, const Event& event);
+    WorldSnapshot snapshot(uint64_t world_id);
+    void restore(uint64_t world_id, const WorldSnapshot& snap);
+};
+```
+
+**Python SDK:**
+```python
+# Create and use a world
+world = client.world_create("worlds/chaos.yaml")
+client.world_join(world["id"])
+
+# Now all syscalls go through the world's virtual environment
+client.read_file("/app/config.yaml")  # Reads from virtual FS
+client.http("http://api.internal.test/health")  # Goes through mock
+
+# Inject chaos
+client.world_event(world["id"], {"type": "network_partition", "duration": 10})
+
+# Save state for replay
+snapshot = client.world_snapshot(world["id"])
+
+# Cleanup
+client.world_leave(world["id"])
+client.world_destroy(world["id"])
+```
+
+### Use Cases
+
+**1. SRE Training**
+```bash
+# Run SRE agents against simulated outages
+python3 ops_platform/main.py world run chaos-test \
+    --agents sre \
+    --duration 30m \
+    --score
+```
+
+**2. Agent Development**
+```bash
+# Develop agents in safe environment
+python3 ops_platform/main.py world create --preset dev
+python3 my_agent.py --world dev
+```
+
+**3. Regression Testing**
+```bash
+# Replay a production incident
+python3 ops_platform/main.py world restore incident_2026_01_15.snapshot
+python3 ops_platform/main.py sre --world restored --diagnose "investigate"
+```
+
+**4. Benchmarking**
+```bash
+# Compare agent performance
+python3 ops_platform/main.py benchmark \
+    --world benchmark \
+    --agents agent_v1.py agent_v2.py \
+    --scenarios scenarios/
+```
+
+---
+
+## Updated Implementation Order
+
+| Phase | Priority | Effort | Status |
+|-------|----------|--------|--------|
+| Phase 1: IPC | High | Medium | ✅ COMPLETE |
+| Phase 2: State Store | High | Low | ✅ COMPLETE |
+| Phase 3: Permissions | Medium | Medium | ✅ COMPLETE |
+| Phase 4: Network | Medium | Low | ✅ COMPLETE |
+| Phase 5: Events | Medium | Medium | ✅ COMPLETE |
+| Phase 6: Remote | High | High | Pending |
+| Phase 7: Orchestration | Low | Medium | Pending |
+| Phase 8: Quotas | Low | Medium | Pending |
+| **Phase 9: World Engine** | **High** | **High** | **NEW** |
+
+**Recommended Build Order:**
+1. Phase 6 (Remote) - Cloud agent connectivity
+2. Phase 7 (Orchestration) - Multi-agent task coordination
+3. Phase 8 (Quotas) - Resource metrics and quotas
+4. Phase 9 (World Engine) - Foundation for safe agent execution

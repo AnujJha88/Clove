@@ -14,6 +14,7 @@
 #include <atomic>
 #include <queue>
 #include <unordered_map>
+#include <set>
 #include <mutex>
 #include <chrono>
 #include "kernel/reactor.hpp"
@@ -31,6 +32,63 @@ struct IPCMessage {
     std::string from_name;
     nlohmann::json message;
     std::chrono::steady_clock::time_point timestamp;
+};
+
+// State Store entry
+struct StoredValue {
+    nlohmann::json value;
+    std::chrono::steady_clock::time_point expires_at;
+    uint32_t owner_agent_id;
+    std::string scope;  // "global", "agent", "session"
+
+    bool is_expired() const {
+        if (expires_at == std::chrono::steady_clock::time_point{}) return false;
+        return std::chrono::steady_clock::now() > expires_at;
+    }
+};
+
+// Kernel event types for pub/sub system (not to be confused with reactor EventType)
+enum class KernelEventType {
+    AGENT_SPAWNED,      // New agent started
+    AGENT_EXITED,       // Agent terminated
+    MESSAGE_RECEIVED,   // New IPC message arrived
+    STATE_CHANGED,      // State store key modified
+    SYSCALL_BLOCKED,    // Permission denied
+    RESOURCE_WARNING,   // Approaching resource limits
+    CUSTOM              // User-defined event
+};
+
+// Convert KernelEventType to string
+inline std::string kernel_event_type_to_string(KernelEventType type) {
+    switch (type) {
+        case KernelEventType::AGENT_SPAWNED:    return "AGENT_SPAWNED";
+        case KernelEventType::AGENT_EXITED:     return "AGENT_EXITED";
+        case KernelEventType::MESSAGE_RECEIVED: return "MESSAGE_RECEIVED";
+        case KernelEventType::STATE_CHANGED:    return "STATE_CHANGED";
+        case KernelEventType::SYSCALL_BLOCKED:  return "SYSCALL_BLOCKED";
+        case KernelEventType::RESOURCE_WARNING: return "RESOURCE_WARNING";
+        case KernelEventType::CUSTOM:           return "CUSTOM";
+        default: return "UNKNOWN";
+    }
+}
+
+// Parse KernelEventType from string
+inline KernelEventType kernel_event_type_from_string(const std::string& str) {
+    if (str == "AGENT_SPAWNED")    return KernelEventType::AGENT_SPAWNED;
+    if (str == "AGENT_EXITED")     return KernelEventType::AGENT_EXITED;
+    if (str == "MESSAGE_RECEIVED") return KernelEventType::MESSAGE_RECEIVED;
+    if (str == "STATE_CHANGED")    return KernelEventType::STATE_CHANGED;
+    if (str == "SYSCALL_BLOCKED")  return KernelEventType::SYSCALL_BLOCKED;
+    if (str == "RESOURCE_WARNING") return KernelEventType::RESOURCE_WARNING;
+    return KernelEventType::CUSTOM;
+}
+
+// Kernel event
+struct KernelEvent {
+    KernelEventType type;
+    nlohmann::json data;
+    std::chrono::steady_clock::time_point timestamp;
+    uint32_t source_agent_id;  // 0 = kernel
 };
 
 // Kernel configuration
@@ -96,8 +154,24 @@ private:
     std::unordered_map<uint32_t, AgentPermissions> agent_permissions_;
     std::mutex permissions_mutex_;
 
+    // State Store: shared key-value storage
+    std::unordered_map<std::string, StoredValue> state_store_;
+    std::mutex state_store_mutex_;
+
+    // Events: subscriptions (agent_id -> set of event types)
+    std::unordered_map<uint32_t, std::set<KernelEventType>> event_subscriptions_;
+    // Events: queues per agent
+    std::unordered_map<uint32_t, std::queue<KernelEvent>> event_queues_;
+    std::mutex events_mutex_;
+
     // Get or create permissions for an agent
     AgentPermissions& get_agent_permissions(uint32_t agent_id);
+
+    // Emit an event to all subscribed agents
+    void emit_event(KernelEventType type, const nlohmann::json& data, uint32_t source_agent_id = 0);
+
+    // Check if agent can access a key (based on scope)
+    bool can_access_key(uint32_t agent_id, const std::string& key, const StoredValue& value) const;
 
     // Event handlers
     void on_server_event(int fd, uint32_t events);
@@ -125,8 +199,20 @@ private:
     ipc::Message handle_get_perms(const ipc::Message& msg);
     ipc::Message handle_set_perms(const ipc::Message& msg);
 
+    // State Store syscall handlers
+    ipc::Message handle_store(const ipc::Message& msg);
+    ipc::Message handle_fetch(const ipc::Message& msg);
+    ipc::Message handle_delete(const ipc::Message& msg);
+    ipc::Message handle_keys(const ipc::Message& msg);
+
     // Network syscall handlers
     ipc::Message handle_http(const ipc::Message& msg);
+
+    // Event syscall handlers
+    ipc::Message handle_subscribe(const ipc::Message& msg);
+    ipc::Message handle_unsubscribe(const ipc::Message& msg);
+    ipc::Message handle_poll_events(const ipc::Message& msg);
+    ipc::Message handle_emit(const ipc::Message& msg);
 
     // Update client in reactor (for write events)
     void update_client_events(int fd);
