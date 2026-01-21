@@ -37,7 +37,7 @@ def cpu_burn():
 
 
 def main():
-    socket_path = sys.argv[1] if len(sys.argv) > 1 else '/tmp/agentos.sock'
+    socket_path = sys.argv[1] if len(sys.argv) > 1 else '/tmp/clove.sock'
 
     print(f"[CPU-HOG] Starting - PID: {os.getpid()}")
     print(f"[CPU-HOG] Connecting to {socket_path}")

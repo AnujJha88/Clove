@@ -47,7 +47,7 @@ RestrictNamespaces=yes
 RestrictRealtime=yes
 
 # Allow read access to kernel socket
-ReadWritePaths=/tmp/agentos.sock
+ReadWritePaths=/tmp/clove.sock
 
 [Install]
 WantedBy=multi-user.target

@@ -24,7 +24,7 @@ from agentos import AgentOSClient
 
 
 def main():
-    socket_path = sys.argv[1] if len(sys.argv) > 1 else '/tmp/agentos.sock'
+    socket_path = sys.argv[1] if len(sys.argv) > 1 else '/tmp/clove.sock'
     duration = int(sys.argv[2]) if len(sys.argv) > 2 else 60  # Run for 60s by default
 
     print(f"[HEALTHY] Starting - PID: {os.getpid()}")

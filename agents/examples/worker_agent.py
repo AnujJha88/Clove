@@ -19,7 +19,7 @@ from agentos import AgentOSClient, SyscallOp
 
 
 def main():
-    socket_path = sys.argv[1] if len(sys.argv) > 1 else '/tmp/agentos.sock'
+    socket_path = sys.argv[1] if len(sys.argv) > 1 else '/tmp/clove.sock'
 
     print(f"[Worker] Starting, connecting to {socket_path}")
     print(f"[Worker] PID: {os.getpid()}")

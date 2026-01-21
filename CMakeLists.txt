@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(AgentOS VERSION 0.1.0 LANGUAGES CXX)
+project(Clove VERSION 0.1.0 LANGUAGES CXX)
 
 # Require C++23
 set(CMAKE_CXX_STANDARD 23)
@@ -24,7 +24,7 @@ find_package(PkgConfig)
 pkg_check_modules(LIBURING liburing)
 
 # Main executable
-add_executable(agentos_kernel
+add_executable(clove_kernel
     src/main.cpp
     src/kernel/kernel.cpp
     src/kernel/reactor.cpp
@@ -39,12 +39,12 @@ add_executable(agentos_kernel
     src/util/logger.cpp
 )
 
-target_include_directories(agentos_kernel PRIVATE
+target_include_directories(clove_kernel PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_link_libraries(agentos_kernel PRIVATE
+target_link_libraries(clove_kernel PRIVATE
     fmt::fmt
     spdlog::spdlog
     nlohmann_json::nlohmann_json
@@ -55,10 +55,10 @@ target_link_libraries(agentos_kernel PRIVATE
 
 # Link io_uring if available
 if(LIBURING_FOUND)
-    target_compile_definitions(agentos_kernel PRIVATE HAS_IO_URING)
-    target_link_libraries(agentos_kernel PRIVATE ${LIBURING_LIBRARIES})
-    target_include_directories(agentos_kernel PRIVATE ${LIBURING_INCLUDE_DIRS})
+    target_compile_definitions(clove_kernel PRIVATE HAS_IO_URING)
+    target_link_libraries(clove_kernel PRIVATE ${LIBURING_LIBRARIES})
+    target_include_directories(clove_kernel PRIVATE ${LIBURING_INCLUDE_DIRS})
 endif()
 
 # Installation
-install(TARGETS agentos_kernel DESTINATION bin)
+install(TARGETS clove_kernel DESTINATION bin)

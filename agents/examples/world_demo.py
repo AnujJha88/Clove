@@ -349,7 +349,7 @@ def demo_world_isolation(client):
 
 
 def main():
-    socket_path = sys.argv[1] if len(sys.argv) > 1 else '/tmp/agentos.sock'
+    socket_path = sys.argv[1] if len(sys.argv) > 1 else '/tmp/clove.sock'
 
     print("=" * 60)
     print("AgentOS World Simulation Demo")

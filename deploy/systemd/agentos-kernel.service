@@ -51,7 +51,7 @@ MemoryDenyWriteExecute=yes
 
 # Allow write access to specific directories
 ReadWritePaths=/var/lib/agentos
-ReadWritePaths=/tmp/agentos.sock
+ReadWritePaths=/tmp/clove.sock
 
 # Capabilities
 CapabilityBoundingSet=

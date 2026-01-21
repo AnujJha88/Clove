@@ -420,7 +420,7 @@ Think through this step by step and use the tools to accomplish the task."""
             del self.tools[name]
 
 
-def run_task(task: str, socket_path: str = "/tmp/agentos.sock",
+def run_task(task: str, socket_path: str = "/tmp/clove.sock",
              max_iterations: int = 20, verbose: bool = True) -> AgentResult:
     """
     Convenience function to run a single task.

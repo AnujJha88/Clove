@@ -41,7 +41,7 @@ with AgentOSClient() as client:
 ### Connection
 
 ```python
-client = AgentOSClient(socket_path='/tmp/agentos.sock')
+client = AgentOSClient(socket_path='/tmp/clove.sock')
 client.connect()
 # ... use client ...
 client.disconnect()

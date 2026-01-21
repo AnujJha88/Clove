@@ -29,18 +29,14 @@ void print_banner() {
     std::cout << R"(
     ╔═══════════════════════════════════════════════════════════╗
     ║                                                           ║
-    ║     █████╗  ██████╗ ███████╗███╗   ██╗████████╗           ║
-    ║    ██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝           ║
-    ║    ███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║              ║
-    ║    ██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║              ║
-    ║    ██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║              ║
-    ║    ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝              ║
-    ║                      )" << term::RESET << term::DIM << "  ██████╗ ███████╗" << term::CYAN << term::BOLD << R"(            ║
-    ║                      )" << term::RESET << term::DIM << " ██╔═══██╗██╔════╝" << term::CYAN << term::BOLD << R"(            ║
-    ║                      )" << term::RESET << term::DIM << " ██║   ██║███████╗" << term::CYAN << term::BOLD << R"(            ║
-    ║                      )" << term::RESET << term::DIM << " ██║   ██║╚════██║" << term::CYAN << term::BOLD << R"(            ║
-    ║                      )" << term::RESET << term::DIM << " ╚██████╔╝███████║" << term::CYAN << term::BOLD << R"(            ║
-    ║                      )" << term::RESET << term::DIM << "  ╚═════╝ ╚══════╝" << term::CYAN << term::BOLD << R"(            ║
+    ║       ██████╗██╗      ██████╗ ██╗   ██╗███████╗           ║
+    ║      ██╔════╝██║     ██╔═══██╗██║   ██║██╔════╝           ║
+    ║      ██║     ██║     ██║   ██║██║   ██║█████╗             ║
+    ║      ██║     ██║     ██║   ██║╚██╗ ██╔╝██╔══╝             ║
+    ║      ╚██████╗███████╗╚██████╔╝ ╚████╔╝ ███████╗           ║
+    ║       ╚═════╝╚══════╝ ╚═════╝   ╚═══╝  ╚══════╝           ║
+    ║                                                           ║
+    ║)" << term::RESET << term::DIM << "            ≡  Microkernel for Intelligent Agents  ≡" << term::CYAN << term::BOLD << R"(       ║
     ║                                                           ║
     ╚═══════════════════════════════════════════════════════════╝
 )" << term::RESET;
@@ -50,8 +46,8 @@ void print_status_box(const std::string& socket_path, bool sandbox_enabled,
                       const std::string& llm_model) {
     std::cout << term::WHITE << term::BOLD;
     std::cout << "\n    ┌─────────────────────────────────────────────────────────┐\n";
-    std::cout << "    │" << term::RESET << term::CYAN << "  KERNEL STATUS" << term::RESET
-              << term::WHITE << term::BOLD << "                                          │\n";
+    std::cout << "    │" << term::RESET << term::CYAN << "  CLOVE STATUS" << term::RESET
+              << term::WHITE << term::BOLD << "                                           │\n";
     std::cout << "    ├─────────────────────────────────────────────────────────┤\n";
 
     // Version
@@ -106,7 +102,7 @@ void print_startup_sequence() {
 void print_ready_message(const std::string& socket_path) {
     std::cout << "\n" << term::GREEN << term::BOLD;
     std::cout << "    ══════════════════════════════════════════════════════════\n";
-    std::cout << "      KERNEL READY" << term::RESET << term::DIM << "  ·  Press Ctrl+C to shutdown\n";
+    std::cout << "      CLOVE READY" << term::RESET << term::DIM << "  ·  Press Ctrl+C to shutdown\n";
     std::cout << term::GREEN << term::BOLD;
     std::cout << "    ══════════════════════════════════════════════════════════\n";
     std::cout << term::RESET << "\n";
@@ -141,7 +137,7 @@ int main(int argc, char** argv) {
     // Initialize
     if (!kernel.init()) {
         std::cout << "\n    " << term::BOLD << "\033[31m✗" << term::RESET
-                  << "  Failed to initialize kernel\n\n";
+                  << "  Failed to initialize clove\n\n";
         return 1;
     }
 

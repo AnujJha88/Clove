@@ -16,7 +16,7 @@ AgentOS is a microkernel for AI agents. It provides OS-level isolation, resource
 │         │                  │                       │             │
 │         └──────────────────┼───────────────────────┘             │
 │                            │                                     │
-│              Unix Domain Socket (/tmp/agentos.sock)              │
+│              Unix Domain Socket (/tmp/clove.sock)              │
 └────────────────────────────┼─────────────────────────────────────┘
                              │
         ┌────────────────────┼────────────────────┐

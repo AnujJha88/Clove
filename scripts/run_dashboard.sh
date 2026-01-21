@@ -10,7 +10,7 @@ echo "Starting AgentOS Dashboard..."
 echo
 
 # Check if kernel socket exists
-if [ ! -S /tmp/agentos.sock ]; then
+if [ ! -S /tmp/clove.sock ]; then
     echo "Warning: Kernel socket not found. Start kernel first:"
     echo "  ./scripts/run_kernel.sh"
     echo

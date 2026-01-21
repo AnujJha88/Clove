@@ -39,7 +39,7 @@ def get_memory_mb():
 
 
 def main():
-    socket_path = sys.argv[1] if len(sys.argv) > 1 else '/tmp/agentos.sock'
+    socket_path = sys.argv[1] if len(sys.argv) > 1 else '/tmp/clove.sock'
 
     print(f"[MEM-HOG] Starting - PID: {os.getpid()}")
     print(f"[MEM-HOG] Connecting to {socket_path}")

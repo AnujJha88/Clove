@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-AgentOS CLI Configuration Management
+Clove CLI Configuration Management
 
-Manages ~/.agentos/config.yaml and provides access to configuration values.
+Manages ~/.clove/config.yaml and provides access to configuration values.
 """
 
 import os
@@ -12,13 +12,13 @@ from dataclasses import dataclass, field, asdict
 from typing import Optional, Dict, Any
 
 
-DEFAULT_CONFIG_DIR = Path.home() / '.agentos'
+DEFAULT_CONFIG_DIR = Path.home() / '.clove'
 DEFAULT_CONFIG_FILE = DEFAULT_CONFIG_DIR / 'config.yaml'
 
 
 @dataclass
 class Config:
-    """AgentOS CLI Configuration"""
+    """Clove CLI Configuration"""
 
     # Relay server settings
     relay_url: str = "ws://localhost:8765"
@@ -35,11 +35,11 @@ class Config:
     gcp_machine_type: str = "n1-standard-1"
 
     # Docker settings
-    docker_image: str = "agentos/kernel:latest"
-    docker_network: str = "agentos-network"
+    docker_image: str = "clove/kernel:latest"
+    docker_network: str = "clove-network"
 
     # SSH settings
-    ssh_key_path: str = str(Path.home() / '.ssh' / 'agentos.pem')
+    ssh_key_path: str = str(Path.home() / '.ssh' / 'clove.pem')
 
     # General settings
     default_instance_type: str = "small"  # small, medium, large

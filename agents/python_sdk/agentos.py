@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-AgentOS Python SDK
+Clove Python SDK
 
-Client library for communicating with the AgentOS kernel via Unix domain sockets.
+Client library for communicating with the Clove kernel via Unix domain sockets.
 """
 
 import socket
@@ -69,7 +69,7 @@ class SyscallOp(IntEnum):
 
 @dataclass
 class Message:
-    """AgentOS message"""
+    """Clove message"""
     agent_id: int
     opcode: SyscallOp
     payload: bytes
@@ -111,16 +111,16 @@ class Message:
         return self.payload.decode('utf-8', errors='replace')
 
 
-class AgentOSClient:
-    """Client for communicating with AgentOS kernel"""
+class CloveClient:
+    """Client for communicating with Clove kernel"""
 
-    def __init__(self, socket_path: str = '/tmp/agentos.sock'):
+    def __init__(self, socket_path: str = '/tmp/clove.sock'):
         self.socket_path = socket_path
         self._sock: Optional[socket.socket] = None
         self._agent_id = 0
 
     def connect(self) -> bool:
-        """Connect to the AgentOS kernel"""
+        """Connect to the Clove kernel"""
         try:
             self._sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             self._sock.connect(self.socket_path)
@@ -1082,26 +1082,30 @@ class AgentOSClient:
         self.disconnect()
 
 
+# Backwards compatibility alias
+AgentOSClient = CloveClient
+
+
 # Convenience function for quick testing
-def connect(socket_path: str = '/tmp/agentos.sock') -> AgentOSClient:
+def connect(socket_path: str = '/tmp/clove.sock') -> CloveClient:
     """Create and connect a client"""
-    client = AgentOSClient(socket_path)
+    client = CloveClient(socket_path)
     if not client.connect():
         raise ConnectionError(f"Failed to connect to {socket_path}")
     return client
  
 
-if __name__ == '__main__': 
+if __name__ == '__main__':
     # Quick test
-    print("AgentOS Python SDK")
-    print("==================")
-    print(f"Socket path: /tmp/agentos.sock")
+    print("Clove Python SDK")
+    print("================")
+    print(f"Socket path: /tmp/clove.sock")
     print(f"Header size: {HEADER_SIZE} bytes")
     print(f"Magic bytes: 0x{MAGIC_BYTES:08X}")
     print()
     print("Usage:")
-    print("  from agentos import AgentOSClient")
+    print("  from agentos import CloveClient")
     print("  ")
-    print("  with AgentOSClient() as client:")
+    print("  with CloveClient() as client:")
     print("      response = client.echo('Hello!')")
     print("      print(response)")

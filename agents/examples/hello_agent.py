@@ -20,7 +20,7 @@ def main():
     print("=" * 50)
     print()
 
-    socket_path = '/tmp/agentos.sock'
+    socket_path = '/tmp/clove.sock'
     if len(sys.argv) > 1:
         socket_path = sys.argv[1]
 

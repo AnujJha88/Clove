@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-AgentOS CLI - One-command deploy and manage AgentOS kernels
+Clove CLI - One-command deploy and manage Clove kernels
 
 Usage:
-    agentos deploy docker --name dev-kernel
-    agentos deploy aws --region us-east-1
-    agentos status
-    agentos agent run my_agent.py --machine aws-us-east-1-abc123
+    clove deploy docker --name dev-kernel
+    clove deploy aws --region us-east-1
+    clove status
+    clove agent run my_agent.py --machine aws-us-east-1-abc123
 """
 
 import click
@@ -26,7 +26,7 @@ from cli.commands import deploy, status, machines, agent, tokens
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
 @click.pass_context
 def cli(ctx, config, relay, verbose):
-    """AgentOS CLI - Deploy and manage AgentOS kernels anywhere."""
+    """Clove CLI - Deploy and manage Clove kernels anywhere."""
     ctx.ensure_object(dict)
 
     # Load configuration
@@ -52,7 +52,7 @@ cli.add_command(tokens.tokens)
 def config(ctx):
     """Show current configuration."""
     cfg = ctx.obj['config']
-    click.echo("AgentOS Configuration:")
+    click.echo("Clove Configuration:")
     click.echo(f"  Config file: {cfg.config_path}")
     click.echo(f"  Relay URL: {cfg.relay_url}")
     click.echo(f"  Default region (AWS): {cfg.aws_region}")
@@ -83,8 +83,8 @@ def config_set(ctx, key, value):
 @cli.command()
 def version():
     """Show version information."""
-    click.echo("AgentOS CLI v0.1.0")
-    click.echo("AgentOS Kernel v0.1.0")
+    click.echo("Clove CLI v0.1.0")
+    click.echo("Clove Kernel v0.1.0")
 
 
 def main():

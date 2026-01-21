@@ -8,7 +8,7 @@ set -e
 MACHINE_ID="${MACHINE_ID:-docker-kernel-$(hostname | cut -c1-8)}"
 MACHINE_TOKEN="${MACHINE_TOKEN:-}"
 RELAY_URL="${RELAY_URL:-ws://host.docker.internal:8765}"
-KERNEL_SOCKET="${KERNEL_SOCKET:-/tmp/agentos.sock}"
+KERNEL_SOCKET="${KERNEL_SOCKET:-/tmp/clove.sock}"
 
 # Colors for output
 RED='\033[0;31m'

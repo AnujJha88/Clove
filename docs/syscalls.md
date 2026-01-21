@@ -12,7 +12,7 @@
 
 - **Magic**: `0x41474E54` ("AGNT")
 - **Max payload**: 1 MB
-- **Socket**: `/tmp/agentos.sock`
+- **Socket**: `/tmp/clove.sock`
 
 ---
 

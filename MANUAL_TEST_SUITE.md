@@ -370,11 +370,13 @@ def main():
 
         # Spawn an agent
         print("--- Spawning worker agent ---")
-        agent_id = client.spawn(
+        spawn_result = client.spawn(
             name="test-worker",
             script="/tmp/worker_agent.py",
             sandboxed=False
         )
+        agent_id = spawn_result.get('id') if spawn_result else None
+        print(f"Spawn result: {spawn_result}")
         print(f"Spawned agent ID: {agent_id}\n")
 
         time.sleep(2)
@@ -389,8 +391,8 @@ def main():
 
         # Kill the agent
         print(f"--- Killing agent {agent_id} ---")
-        result = client.kill_agent(agent_id)
-        print(f"Kill result: {result}\n")
+        killed = client.kill(agent_id=agent_id)
+        print(f"Kill successful: {killed}\n")
 
         time.sleep(1)
 

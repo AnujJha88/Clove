@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-AgentOS CLI Setup Script
+Clove CLI Setup Script
 
 Install with: pip install -e cli/
 """
@@ -22,18 +22,18 @@ else:
     ]
 
 setup(
-    name='agentos-cli',
+    name='clove-cli',
     version='0.1.0',
-    description='AgentOS CLI - Deploy and manage AgentOS kernels anywhere',
-    author='AgentOS Team',
-    author_email='team@agentos.dev',
-    url='https://github.com/agentos-project/agentos',
+    description='Clove CLI - Deploy and manage Clove kernels anywhere',
+    author='Clove Team',
+    author_email='team@clove.dev',
+    url='https://github.com/clove-project/clove',
     packages=find_packages(),
     include_package_data=True,
     install_requires=requirements,
     entry_points={
         'console_scripts': [
-            'agentos=agentos:main',
+            'clove=agentos:main',
         ],
     },
     python_requires='>=3.8',
