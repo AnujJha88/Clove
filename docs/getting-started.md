@@ -1,4 +1,4 @@
-# Getting Started with AgentOS
+# Getting Started with Clove
 
 ## Prerequisites
 
@@ -12,8 +12,8 @@
 
 ```bash
 # Clone
-git clone <repo-url> AgentOS
-cd AgentOS
+git clone <repo-url> clove
+cd clove
 
 # Run install script
 ./scripts/install.sh
@@ -43,13 +43,18 @@ export VCPKG_ROOT="$HOME/vcpkg"
 ### 3. Python Dependencies
 
 ```bash
-pip3 install google-genai websockets
+# Create and activate virtual environment
+python3 -m venv clove_env
+source clove_env/bin/activate
+
+# Install dependencies
+pip install google-genai websockets
 ```
 
 ### 4. Build Kernel
 
 ```bash
-cd AgentOS
+cd clove
 mkdir -p build && cd build
 cmake ..
 make -j$(nproc)
@@ -62,17 +67,17 @@ cp .env.example .env
 # Add your Gemini API key to .env
 ```
 
-## Running AgentOS
+## Running Clove
 
 ### Start the Kernel
 
 ```bash
-./build/agentos_kernel
+./build/clove_kernel
 ```
 
 For full sandbox isolation (namespaces + cgroups):
 ```bash
-sudo ./build/agentos_kernel
+sudo ./build/clove_kernel
 ```
 
 ### Run Your First Agent
@@ -98,9 +103,9 @@ cd agents/dashboard && python3 -m http.server 8000
 ## Basic SDK Usage
 
 ```python
-from agentos import AgentOSClient
+from clove import CloveClient
 
-with AgentOSClient() as client:
+with CloveClient() as client:
     # Echo test
     result = client.noop("Hello!")
     print(result)
@@ -125,12 +130,16 @@ with AgentOSClient() as client:
 
 ## CLI Tool
 
-The `agentos` CLI provides fleet management and remote deployment.
+The `clove` CLI provides fleet management and remote deployment.
 
 ### Install CLI
 
 ```bash
 cd cli
+
+# Make sure virtual environment is active
+source ../clove_env/bin/activate
+
 pip install -e .
 
 # Or install dependencies manually
@@ -141,63 +150,63 @@ pip install -r requirements.txt
 
 ```bash
 # Set relay server URL
-agentos config set relay_url http://localhost:8766
+clove config set relay_url http://localhost:8766
 
 # View configuration
-agentos config show
+clove config show
 ```
 
 ### Deploy to Docker
 
 ```bash
 # Deploy a local Docker container
-agentos deploy docker --name dev-kernel
+clove deploy docker --name dev-kernel
 
 # Check status
-agentos status
+clove status
 ```
 
 ### Deploy to AWS
 
 ```bash
 # Deploy to AWS EC2
-agentos deploy aws --region us-east-1 --instance-type t3.micro
+clove deploy aws --region us-east-1 --instance-type t3.micro
 
 # View machines
-agentos machines list
+clove machines list
 ```
 
 ### Deploy to GCP
 
 ```bash
 # Deploy to GCP Compute Engine
-agentos deploy gcp --zone us-central1-a --machine-type n1-standard-1
+clove deploy gcp --zone us-central1-a --machine-type n1-standard-1
 ```
 
 ### Run Agents Remotely
 
 ```bash
 # Run on a specific machine
-agentos agent run agents/examples/hello_agent.py --machine docker-dev-kernel-abc123
+clove agent run agents/examples/hello_agent.py --machine docker-dev-kernel-abc123
 
 # Run on all machines
-agentos agent run agents/examples/health_check.py --all
+clove agent run agents/examples/health_check.py --all
 
 # List running agents
-agentos agent list
+clove agent list
 ```
 
 ### Token Management
 
 ```bash
 # Create machine token (for new kernels)
-agentos tokens create machine --name production-server
+clove tokens create machine --name production-server
 
 # Create agent token
-agentos tokens create agent --target-machine docker-dev-kernel-abc123
+clove tokens create agent --target-machine docker-dev-kernel-abc123
 
 # List tokens
-agentos tokens list
+clove tokens list
 ```
 
 ## Fleet Management
@@ -224,9 +233,9 @@ python scripts/tunnel_client.py --relay ws://relay.example.com:8765 --token <mac
 ### Fleet Status
 
 ```bash
-$ agentos status
+$ clove status
 
- AgentOS Fleet Status
+ Clove Fleet Status
 ┏━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━━━┓
 ┃ Machine ID            ┃ Provider   ┃ Status      ┃ Agents      ┃
 ┡━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━━━━━━┩
@@ -238,6 +247,6 @@ $ agentos status
 ## Next Steps
 
 - [Syscall Reference](syscalls.md) - All available syscalls
-- [Architecture](architecture.md) - How AgentOS works
+- [Architecture](architecture.md) - How Clove works
 - [CLI Reference](../cli/README.md) - Full CLI documentation
 - [Examples](../agents/examples/README.md) - Demo agents

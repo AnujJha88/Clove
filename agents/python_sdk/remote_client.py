@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 """
-AgentOS Remote Client SDK
+Clove Remote Client SDK
 
-Client library for connecting to a remote AgentOS kernel through a relay server.
+Client library for connecting to a remote Clove kernel through a relay server.
 This enables cloud agents to interact with local kernels behind NAT/firewalls.
 
-The API is identical to AgentOSClient, but communication goes through
+The API is identical to CloveClient, but communication goes through
 WebSocket relay instead of Unix domain sockets.
 
 Example:
-    from agentos.remote_client import RemoteAgentClient
+    from clove.remote_client import RemoteAgentClient
 
     client = RemoteAgentClient(
-        relay_url="wss://relay.agentos.dev",
+        relay_url="wss://relay.clove.dev",
         agent_name="cloud-worker",
         agent_token="my-token",
         target_machine="my-desktop"
@@ -127,9 +127,9 @@ class Message:
 
 class RemoteAgentClient:
     """
-    Client for connecting to a remote AgentOS kernel via relay server.
+    Client for connecting to a remote Clove kernel via relay server.
 
-    API is compatible with AgentOSClient for easy migration.
+    API is compatible with CloveClient for easy migration.
     """
 
     def __init__(self, relay_url: str, agent_name: str, agent_token: str,
@@ -241,19 +241,50 @@ class RemoteAgentClient:
             self._ws = None
 
     async def _message_loop(self):
-        """Handle incoming messages from relay"""
-        try:
-            async for message in self._ws:
-                try:
-                    data = json.loads(message)
-                    await self._handle_message(data)
-                except Exception as e:
-                    print(f"Error handling message: {e}")
-        except websockets.ConnectionClosed:
-            self._connected = False
-        except Exception as e:
-            self._connected = False
-            print(f"Message loop error: {e}")
+        """Handle incoming messages from relay with reconnection support"""
+        reconnect_attempts = 0
+        max_reconnect_attempts = 5
+        base_delay = 1.0
+
+        while self._connected or (self.reconnect and reconnect_attempts < max_reconnect_attempts):
+            try:
+                if self._ws is None:
+                    break
+
+                async for message in self._ws:
+                    reconnect_attempts = 0  # Reset on successful message
+                    try:
+                        data = json.loads(message)
+                        await self._handle_message(data)
+                    except json.JSONDecodeError as e:
+                        print(f"Invalid JSON from relay: {e}")
+                    except Exception as e:
+                        print(f"Error handling message: {e}")
+
+            except websockets.ConnectionClosed as e:
+                self._connected = False
+                if self.reconnect and reconnect_attempts < max_reconnect_attempts:
+                    reconnect_attempts += 1
+                    delay = base_delay * (2 ** (reconnect_attempts - 1))  # Exponential backoff
+                    print(f"Connection closed (code={e.code}), reconnecting in {delay:.1f}s... (attempt {reconnect_attempts}/{max_reconnect_attempts})")
+                    await asyncio.sleep(delay)
+                    try:
+                        if await self._connect_async():
+                            continue
+                    except Exception as re:
+                        print(f"Reconnection failed: {re}")
+                else:
+                    print(f"Connection closed: {e}")
+                    break
+
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                self._connected = False
+                print(f"Message loop error: {e}")
+                break
+
+        self._connected = False
 
     async def _handle_message(self, data: dict):
         """Handle a message from relay"""
@@ -548,11 +579,11 @@ def connect_remote(relay_url: str, agent_name: str, agent_token: str,
 
 
 if __name__ == '__main__':
-    print("AgentOS Remote Client SDK")
-    print("=========================")
+    print("Clove Remote Client SDK")
+    print("=======================")
     print()
     print("Usage:")
-    print("  from agentos.remote_client import RemoteAgentClient")
+    print("  from clove.remote_client import RemoteAgentClient")
     print()
     print("  client = RemoteAgentClient(")
     print('      relay_url="ws://localhost:8765",')

@@ -66,6 +66,11 @@ enum class SyscallOp : uint8_t {
     SYS_TUNNEL_STATUS     = 0xB2,  // Get tunnel connection status
     SYS_TUNNEL_LIST_REMOTES = 0xB3,  // List connected remote agents
     SYS_TUNNEL_CONFIG     = 0xB4,  // Configure tunnel settings
+    // Metrics
+    SYS_METRICS_SYSTEM    = 0xC0,  // Get system-wide metrics (CPU, memory, etc.)
+    SYS_METRICS_AGENT     = 0xC1,  // Get metrics for specific agent
+    SYS_METRICS_ALL_AGENTS = 0xC2, // Get metrics for all agents
+    SYS_METRICS_CGROUP    = 0xC3,  // Get cgroup metrics for sandboxed agent
     SYS_EXIT   = 0xFF   // Graceful shutdown
 };
 
@@ -222,6 +227,10 @@ inline const char* opcode_to_string(SyscallOp op) {
         case SyscallOp::SYS_TUNNEL_STATUS:     return "TUNNEL_STATUS";
         case SyscallOp::SYS_TUNNEL_LIST_REMOTES: return "TUNNEL_LIST_REMOTES";
         case SyscallOp::SYS_TUNNEL_CONFIG:     return "TUNNEL_CONFIG";
+        case SyscallOp::SYS_METRICS_SYSTEM:    return "METRICS_SYSTEM";
+        case SyscallOp::SYS_METRICS_AGENT:     return "METRICS_AGENT";
+        case SyscallOp::SYS_METRICS_ALL_AGENTS: return "METRICS_ALL_AGENTS";
+        case SyscallOp::SYS_METRICS_CGROUP:    return "METRICS_CGROUP";
         case SyscallOp::SYS_EXIT:      return "EXIT";
         default: return "UNKNOWN";
     }

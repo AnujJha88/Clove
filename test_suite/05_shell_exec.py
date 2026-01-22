@@ -9,7 +9,7 @@ def main():
         print("--- Running: ls -la /tmp ---")
         result = client.exec("ls -la /tmp")
         print(f"Exit code: {result['exit_code']}")
-        print(f"Output:\n{result['stdout'][:500]}\n")
+        print(f"Output:\n{result['stdout'][:500]}\n") 
 
         # Command with pipes
         print("--- Running: echo 'test' | wc -c ---")

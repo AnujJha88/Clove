@@ -33,7 +33,7 @@ setup(
     install_requires=requirements,
     entry_points={
         'console_scripts': [
-            'clove=agentos:main',
+            'clove=clove:main',
         ],
     },
     python_requires='>=3.8',

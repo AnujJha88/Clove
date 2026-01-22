@@ -1,10 +1,10 @@
-# AgentOS Examples
+# Clove Examples
 
 ## Quick Start
 
 ```bash
 # Make sure kernel is running
-./build/agentos_kernel
+./build/clove_kernel
 
 # Run any example
 python3 agents/examples/hello_agent.py
@@ -22,7 +22,7 @@ python3 agents/examples/hello_agent.py
 
 ## OS-Level Demos
 
-These demonstrate why AgentOS exists - capabilities that Python frameworks can't provide.
+These demonstrate why Clove exists - capabilities that Python frameworks can't provide.
 
 | Demo | What It Shows | Command |
 |------|---------------|---------|
@@ -72,7 +72,7 @@ These demonstrate why AgentOS exists - capabilities that Python frameworks can't
 Some demos require root for full namespace/cgroup isolation:
 
 ```bash
-sudo ./build/agentos_kernel  # Start kernel with root
+sudo ./build/clove_kernel  # Start kernel with root
 python3 agents/examples/security_demo.py  # Run demo
 ```
 

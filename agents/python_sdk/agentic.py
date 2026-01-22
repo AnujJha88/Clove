@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-AgentOS Agentic Loop Framework
+Clove Agentic Loop Framework
 
 Provides an LLM-powered agent that can execute commands, read/write files,
 and reason iteratively - similar to Claude Code.
@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
-from agentos import AgentOSClient
+from agentos import CloveClient
 
 
 @dataclass
@@ -54,7 +54,7 @@ class AgenticLoop:
     6. Loops until 'done' tool is called or max iterations reached
     """
 
-    def __init__(self, client: AgentOSClient, max_iterations: int = 20,
+    def __init__(self, client: CloveClient, max_iterations: int = 20,
                  system_prompt: str = None, verbose: bool = True):
         """
         Initialize the agentic loop.
@@ -427,21 +427,21 @@ def run_task(task: str, socket_path: str = "/tmp/clove.sock",
 
     Args:
         task: The task description
-        socket_path: Path to the AgentOS socket
+        socket_path: Path to the Clove kernel socket
         max_iterations: Maximum iterations
         verbose: Whether to print progress
 
     Returns:
         AgentResult with the outcome
     """
-    with AgentOSClient(socket_path) as client:
+    with CloveClient(socket_path) as client:
         loop = AgenticLoop(client, max_iterations=max_iterations, verbose=verbose)
         return loop.run(task)
 
 
 if __name__ == "__main__":
     # Demo usage
-    print("AgentOS Agentic Loop Framework")
+    print("Clove Agentic Loop Framework")
     print("=" * 40)
     print()
     print("Usage:")
@@ -451,7 +451,7 @@ if __name__ == "__main__":
     print("  result = run_task('List all Python files in the current directory')")
     print()
     print("  # Or with more control:")
-    print("  with AgentOSClient() as client:")
+    print("  with CloveClient() as client:")
     print("      loop = AgenticLoop(client)")
     print("      result = loop.run('Create a hello.py and run it')")
     print("      print(result)")

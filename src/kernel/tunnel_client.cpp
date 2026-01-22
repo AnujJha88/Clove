@@ -13,7 +13,7 @@
 namespace fs = std::filesystem;
 using json = nlohmann::json;
 
-namespace agentos::kernel {
+namespace clove::kernel {
 
 TunnelClient::TunnelClient() = default;
 
@@ -40,7 +40,7 @@ bool TunnelClient::init(const std::string& scripts_dir) {
                 exe_dir / "scripts",
                 exe_dir / ".." / "scripts",
                 exe_dir / ".." / ".." / "scripts",
-                fs::path("/usr/share/agentos/scripts")
+                fs::path("/usr/share/clove/scripts")
             };
 
             for (const auto& path : search_paths) {
@@ -554,4 +554,4 @@ void TunnelClient::handle_response(const nlohmann::json& response) {
     }
 }
 
-} // namespace agentos::kernel
+} // namespace clove::kernel

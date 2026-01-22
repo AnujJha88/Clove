@@ -1,6 +1,6 @@
-# AgentOS CLI
+# Clove CLI
 
-Command-line tool for managing AgentOS fleets across local Docker containers and cloud infrastructure.
+Command-line tool for managing Clove fleets across local Docker containers and cloud infrastructure.
 
 ## Installation
 
@@ -14,56 +14,56 @@ pip install -r requirements.txt
 
 ## Configuration
 
-Configuration is stored in `~/.agentos/config.yaml`.
+Configuration is stored in `~/.clove/config.yaml`.
 
 ```bash
 # Set relay server URL
-agentos config set relay_url http://localhost:8766
+clove config set relay_url http://localhost:8766
 
 # Set default region for cloud deployments
-agentos config set default_region us-east-1
+clove config set default_region us-east-1
 
 # View all configuration
-agentos config show
+clove config show
 ```
 
 ## Commands
 
 ### Deploy
 
-Deploy AgentOS kernels to various environments.
+Deploy Clove kernels to various environments.
 
 #### Docker
 
 ```bash
 # Deploy a local Docker container
-agentos deploy docker --name my-kernel
+clove deploy docker --name my-kernel
 
 # With custom relay URL
-agentos deploy docker --name my-kernel --relay-url ws://relay.example.com:8765
+clove deploy docker --name my-kernel --relay-url ws://relay.example.com:8765
 ```
 
 #### AWS
 
 ```bash
 # Deploy to AWS EC2
-agentos deploy aws --region us-east-1
+clove deploy aws --region us-east-1
 
 # With custom instance type
-agentos deploy aws --region us-west-2 --instance-type t3.small
+clove deploy aws --region us-west-2 --instance-type t3.small
 
 # With custom name
-agentos deploy aws --region us-east-1 --name production-kernel
+clove deploy aws --region us-east-1 --name production-kernel
 ```
 
 #### GCP
 
 ```bash
 # Deploy to GCP Compute Engine
-agentos deploy gcp --zone us-central1-a
+clove deploy gcp --zone us-central1-a
 
 # With custom machine type
-agentos deploy gcp --zone europe-west1-b --machine-type n1-standard-2
+clove deploy gcp --zone europe-west1-b --machine-type n1-standard-2
 ```
 
 ### Status
@@ -71,9 +71,9 @@ agentos deploy gcp --zone europe-west1-b --machine-type n1-standard-2
 View fleet status.
 
 ```bash
-$ agentos status
+$ clove status
 
- AgentOS Fleet Status
+ Clove Fleet Status
 ┏━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━━━┓
 ┃ Machine ID            ┃ Provider   ┃ Status      ┃ Agents      ┃
 ┡━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━━━━━━┩
@@ -89,19 +89,19 @@ Manage fleet machines.
 
 ```bash
 # List all machines
-agentos machines list
+clove machines list
 
 # Show detailed info for a machine
-agentos machines show docker-dev-abc123
+clove machines show docker-dev-abc123
 
 # Remove a machine from the fleet
-agentos machines remove docker-dev-abc123
+clove machines remove docker-dev-abc123
 
 # SSH into a machine (cloud only)
-agentos machines ssh aws-i-0def456-us-e1
+clove machines ssh aws-i-0def456-us-e1
 
 # View machine logs
-agentos machines logs docker-dev-abc123
+clove machines logs docker-dev-abc123
 ```
 
 ### Agents
@@ -110,25 +110,25 @@ Run and manage agents.
 
 ```bash
 # Run agent on a specific machine
-agentos agent run my_agent.py --machine docker-dev-abc123
+clove agent run my_agent.py --machine docker-dev-abc123
 
 # Run agent on all connected machines
-agentos agent run health_check.py --all
+clove agent run health_check.py --all
 
 # Run with arguments
-agentos agent run my_agent.py --machine m1 -- --verbose --count 10
+clove agent run my_agent.py --machine m1 -- --verbose --count 10
 
 # List running agents
-agentos agent list
+clove agent list
 
 # List agents on a specific machine
-agentos agent list --machine docker-dev-abc123
+clove agent list --machine docker-dev-abc123
 
 # Stop an agent
-agentos agent stop docker-dev-abc123 42
+clove agent stop docker-dev-abc123 42
 
 # Create a new agent template
-agentos agent create my_new_agent
+clove agent create my_new_agent
 ```
 
 ### Tokens
@@ -137,19 +137,19 @@ Manage authentication tokens.
 
 ```bash
 # Create a machine token (for new kernels)
-agentos tokens create machine --name production-server
+clove tokens create machine --name production-server
 
 # Create an agent token
-agentos tokens create agent --target-machine docker-dev-abc123
+clove tokens create agent --target-machine docker-dev-abc123
 
 # Create an admin token
-agentos tokens create admin --name fleet-admin
+clove tokens create admin --name fleet-admin
 
 # List all tokens
-agentos tokens list
+clove tokens list
 
 # Revoke a token
-agentos tokens revoke tok_abc123def456
+clove tokens revoke tok_abc123def456
 ```
 
 ## Environment Variables
@@ -166,7 +166,7 @@ agentos tokens revoke tok_abc123def456
 
 ```
 cli/
-├── agentos.py           # Main entry point
+├── clove.py           # Main entry point
 ├── config.py            # Configuration management
 ├── relay_api.py         # REST API client
 ├── requirements.txt     # Python dependencies
@@ -203,38 +203,38 @@ The CLI communicates with the relay server via REST API.
 
 ```bash
 # Deploy a kernel
-agentos deploy docker --name dev
+clove deploy docker --name dev
 
 # Run an agent
-agentos agent run agents/examples/hello_agent.py --machine docker-dev-*
+clove agent run agents/examples/hello_agent.py --machine docker-dev-*
 
 # Check status
-agentos status
+clove status
 ```
 
 ### Multi-Machine Deployment
 
 ```bash
 # Deploy multiple machines
-agentos deploy docker --name worker-1
-agentos deploy docker --name worker-2
-agentos deploy docker --name worker-3
+clove deploy docker --name worker-1
+clove deploy docker --name worker-2
+clove deploy docker --name worker-3
 
 # Run health check on all
-agentos agent run agents/examples/health_check.py --all
+clove agent run agents/examples/health_check.py --all
 ```
 
 ### Cloud Deployment
 
 ```bash
 # Deploy to AWS
-agentos deploy aws --region us-east-1 --name prod-east
+clove deploy aws --region us-east-1 --name prod-east
 
 # Deploy to GCP
-agentos deploy gcp --zone europe-west1-b --name prod-europe
+clove deploy gcp --zone europe-west1-b --name prod-europe
 
 # View fleet
-agentos status
+clove status
 ```
 
 ## Troubleshooting
@@ -258,9 +258,9 @@ Error: Authentication failed
 
 Create and configure a token:
 ```bash
-agentos tokens create admin --name my-admin
+clove tokens create admin --name my-admin
 # Copy the displayed token
-agentos config set api_token <token>
+clove config set api_token <token>
 ```
 
 ### Machine Not Found
@@ -271,7 +271,7 @@ Error: Machine docker-dev-abc123 not found
 
 Check machine status:
 ```bash
-agentos machines list
+clove machines list
 ```
 
 The machine may be disconnected. Check the kernel logs on that machine.

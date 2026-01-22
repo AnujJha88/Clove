@@ -64,6 +64,11 @@ class SyscallOp(IntEnum):
     SYS_TUNNEL_STATUS = 0xB2       # Get tunnel connection status
     SYS_TUNNEL_LIST_REMOTES = 0xB3 # List connected remote agents
     SYS_TUNNEL_CONFIG = 0xB4       # Configure tunnel settings
+    # Metrics
+    SYS_METRICS_SYSTEM = 0xC0      # Get system-wide metrics
+    SYS_METRICS_AGENT = 0xC1       # Get metrics for specific agent
+    SYS_METRICS_ALL_AGENTS = 0xC2  # Get metrics for all agents
+    SYS_METRICS_CGROUP = 0xC3      # Get cgroup metrics
     SYS_EXIT = 0xFF   # Graceful shutdown
 
 
@@ -118,6 +123,11 @@ class CloveClient:
         self.socket_path = socket_path
         self._sock: Optional[socket.socket] = None
         self._agent_id = 0
+
+    @property
+    def agent_id(self) -> int:
+        """Get the agent ID assigned by the kernel"""
+        return self._agent_id
 
     def connect(self) -> bool:
         """Connect to the Clove kernel"""
@@ -205,6 +215,10 @@ class CloveClient:
         """Echo a message (for testing)"""
         response = self.call(SyscallOp.SYS_NOOP, message)
         return response.payload_str if response else None
+
+    def noop(self, message: str) -> Optional[str]:
+        """Alias for echo - send a NOOP message (for testing)"""
+        return self.echo(message)
 
     def think(self, prompt: str,
               image: bytes = None,
@@ -1073,6 +1087,142 @@ class CloveClient:
             except json.JSONDecodeError:
                 return {"success": False, "error": response.payload_str}
         return {"success": False, "error": "No response from kernel"}
+
+    # =========================================================================
+    # Metrics Methods
+    # =========================================================================
+
+    def get_system_metrics(self) -> dict:
+        """Get system-wide metrics (CPU, memory, disk, network).
+
+        Returns:
+            dict with 'success', 'metrics' containing:
+                - cpu: percent, per_core, count, freq_mhz, load_avg
+                - memory: total, available, used, percent, buffers, cached
+                - swap: total, used, free
+                - disk: read_bytes, write_bytes, read_ops, write_ops
+                - network: bytes_sent, bytes_recv, packets_sent, packets_recv
+        """
+        import json
+
+        response = self.call(SyscallOp.SYS_METRICS_SYSTEM, "{}")
+        if response:
+            try:
+                return json.loads(response.payload_str)
+            except json.JSONDecodeError:
+                return {"success": False, "error": response.payload_str}
+        return {"success": False, "error": "No response from kernel"}
+
+    def get_agent_metrics(self, agent_id: int = None) -> dict:
+        """Get metrics for a specific agent.
+
+        Args:
+            agent_id: Agent ID to get metrics for (default: self)
+
+        Returns:
+            dict with 'success', 'metrics' containing:
+                - agent_id, name, pid, status, uptime_ms
+                - process: cpu_percent, memory, io, threads
+                - cgroup: cpu limits/usage, memory limits/usage, pids
+                - kernel_stats: syscall_count, llm_calls, etc.
+        """
+        import json
+        payload = {}
+        if agent_id is not None:
+            payload["agent_id"] = agent_id
+
+        response = self.call(SyscallOp.SYS_METRICS_AGENT, json.dumps(payload))
+        if response:
+            try:
+                return json.loads(response.payload_str)
+            except json.JSONDecodeError:
+                return {"success": False, "error": response.payload_str}
+        return {"success": False, "error": "No response from kernel"}
+
+    def get_all_agent_metrics(self) -> dict:
+        """Get metrics for all running agents.
+
+        Returns:
+            dict with 'success', 'agents' (list of agent metrics), 'count'
+        """
+        import json
+
+        response = self.call(SyscallOp.SYS_METRICS_ALL_AGENTS, "{}")
+        if response:
+            try:
+                return json.loads(response.payload_str)
+            except json.JSONDecodeError:
+                return {"success": False, "agents": [], "error": response.payload_str}
+        return {"success": False, "agents": [], "error": "No response from kernel"}
+
+    def get_cgroup_metrics(self, cgroup_path: str = None) -> dict:
+        """Get cgroup metrics for a sandboxed process.
+
+        Args:
+            cgroup_path: Path relative to /sys/fs/cgroup (e.g., "clove/agent-123")
+                        If not specified, uses the caller's cgroup.
+
+        Returns:
+            dict with 'success', 'metrics' containing:
+                - cpu: usage_usec, throttled_usec, quota, period
+                - memory: current, max, peak, oom_kills
+                - pids: current, max
+                - io: read_bytes, write_bytes
+        """
+        import json
+        payload = {}
+        if cgroup_path:
+            payload["cgroup_path"] = cgroup_path
+
+        response = self.call(SyscallOp.SYS_METRICS_CGROUP, json.dumps(payload))
+        if response:
+            try:
+                return json.loads(response.payload_str)
+            except json.JSONDecodeError:
+                return {"success": False, "error": response.payload_str}
+        return {"success": False, "error": "No response from kernel"}
+
+    # =========================================================================
+    # Convenience Aliases for backward compatibility
+    # =========================================================================
+
+    def read(self, path: str) -> str:
+        """Alias for read_file that returns just the content string.
+
+        Args:
+            path: Path to the file to read
+
+        Returns:
+            File content as string, or raises exception on error
+        """
+        result = self.read_file(path)
+        if result.get("success"):
+            return result.get("content", "")
+        raise IOError(result.get("error", "Read failed"))
+
+    def write(self, path: str, content: str, mode: str = "write") -> dict:
+        """Alias for write_file.
+
+        Args:
+            path: Path to the file to write
+            content: Content to write
+            mode: "write" (overwrite) or "append"
+
+        Returns:
+            dict with 'success', 'bytes_written'
+        """
+        return self.write_file(path, content, mode)
+
+    def register(self, name: str) -> dict:
+        """Alias for register_name.
+
+        Args:
+            name: Unique name for this agent
+
+        Returns:
+            dict with 'success', 'agent_id', 'name'
+        """
+        return self.register_name(name)
 
     def __enter__(self):
         self.connect()

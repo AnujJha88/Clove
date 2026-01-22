@@ -1,12 +1,12 @@
-# AgentOS Monitor & Logs
+# Clove Monitor & Logs
 
-htop-style terminal interface for monitoring AgentOS agents with optional logging and graphs.
+htop-style terminal interface for monitoring Clove agents with optional logging and graphs.
 
 ## Quick Start
 
 ```bash
 # Make sure kernel is running
-./build/agentos_kernel
+./build/clove_kernel
 
 # Basic monitor (htop-style)
 python3 agents/dataLogs/monitor.py
@@ -24,7 +24,7 @@ python3 agents/dataLogs/monitor.py --log --graph
 ## Monitor Interface
 
 ```
-═══════════════════ AgentOS Monitor ════════════════════
+═══════════════════ Clove Monitor ════════════════════
 Status: CONNECTED  │  Uptime: 0:05:23  │  LOGGING
 
 Agents: 3  │  Running: 2  │  Stopped: 0  │  Failed: 1

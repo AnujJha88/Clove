@@ -1,14 +1,14 @@
-# AgentOS Architecture
+# Clove Architecture
 
 ## Overview
 
-AgentOS is a microkernel for AI agents. It provides OS-level isolation, resource control, and fair scheduling for autonomous agents. The system supports both local execution and cloud deployment through a relay server architecture.
+Clove is a microkernel for AI agents. It provides OS-level isolation, resource control, and fair scheduling for autonomous agents. The system supports both local execution and cloud deployment through a relay server architecture.
 
 ## Local Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    AgentOS Kernel (C++23)                        │
+│                    Clove Kernel (C++23)                        │
 │  ┌─────────────┐  ┌─────────────────┐  ┌─────────────────────┐  │
 │  │   Reactor   │  │   LLM Client    │  │   Agent Manager     │  │
 │  │   (epoll)   │  │ (subprocess)    │  │   (Sandbox/Fork)    │  │
@@ -32,7 +32,7 @@ AgentOS is a microkernel for AI agents. It provides OS-level isolation, resource
 ```
 ┌──────────────────────────────────────────────────────────────────┐
 │                         YOUR TERMINAL                             │
-│  $ agentos deploy aws    $ agentos status    $ agentos agent run │
+│  $ clove deploy aws    $ clove status    $ clove agent run │
 └───────────────────────────────┬──────────────────────────────────┘
                                 │ REST API
                                 ▼
@@ -51,7 +51,7 @@ AgentOS is a microkernel for AI agents. It provides OS-level isolation, resource
          ▼                   ▼                   ▼
 ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
 │  AWS EC2        │ │  GCP Compute    │ │  Docker Local   │
-│  AgentOS Kernel │ │  AgentOS Kernel │ │  AgentOS Kernel │
+│  Clove Kernel │ │  Clove Kernel │ │  Clove Kernel │
 │  + Tunnel       │ │  + Tunnel       │ │  + Tunnel       │
 └─────────────────┘ └─────────────────┘ └─────────────────┘
 ```
@@ -66,6 +66,7 @@ AgentOS is a microkernel for AI agents. It provides OS-level isolation, resource
 | `reactor.hpp/cpp` | epoll-based event loop |
 | `llm_client.hpp/cpp` | Spawns Python subprocess for LLM calls |
 | `permissions.hpp/cpp` | Permission validation (paths, commands, domains) |
+| `metrics/metrics.hpp/cpp` | System and agent metrics collection |
 
 ### IPC (`src/ipc/`)
 
@@ -196,7 +197,7 @@ Relay Server
 Tunnel Client (on kernel)
     │
     ▼ Unix Socket
-AgentOS Kernel
+Clove Kernel
     │
     ▼ Execute syscall
 Response flows back
@@ -216,8 +217,8 @@ Command-line interface for fleet management.
 
 | File | Purpose |
 |------|---------|
-| `agentos.py` | Main entry point with Click groups |
-| `config.py` | `~/.agentos/config.yaml` management |
+| `clove.py` | Main entry point with Click groups |
+| `config.py` | `~/.clove/config.yaml` management |
 | `relay_api.py` | REST API client (sync/async) |
 | `commands/deploy.py` | Deploy to Docker/AWS/GCP |
 | `commands/status.py` | Fleet status display |
@@ -228,7 +229,7 @@ Command-line interface for fleet management.
 ### Command Flow
 
 ```
-$ agentos agent run script.py --machine m1
+$ clove agent run script.py --machine m1
     │
     ▼ CLI parses command
 RelayAPIClient
@@ -245,7 +246,7 @@ Results streamed back
 
 ## Deployment (`deploy/`)
 
-Infrastructure for deploying AgentOS to various environments.
+Infrastructure for deploying Clove to various environments.
 
 | Directory | Purpose |
 |-----------|---------|
@@ -257,14 +258,14 @@ Infrastructure for deploying AgentOS to various environments.
 ### Deployment Flow
 
 ```
-$ agentos deploy aws
+$ clove deploy aws
     │
     ├─► terraform init && terraform apply
     │       Creates EC2 + networking
     │
     └─► cloud-init executes
             │
-            ├─► Install AgentOS
+            ├─► Install Clove
             ├─► Start kernel (systemd)
             └─► Start tunnel (connects to relay)
 ```

@@ -1,22 +1,22 @@
 [Unit]
-Description=AgentOS Kernel
-Documentation=https://github.com/agentos-project/agentos
+Description=Clove Kernel - Microkernel OS for AI Agents
+Documentation=https://github.com/clove-project/clove
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-User=agentos
-Group=agentos
+User=clove
+Group=clove
 
 # Environment configuration
-EnvironmentFile=-/etc/agentos/config.env
+EnvironmentFile=-/etc/clove/config.env
 
 # Working directory
-WorkingDirectory=/opt/agentos
+WorkingDirectory=/opt/clove
 
 # Main executable
-ExecStart=/opt/agentos/agentos_kernel
+ExecStart=/opt/clove/clove_kernel
 
 # Restart configuration
 Restart=always
@@ -26,7 +26,7 @@ WatchdogSec=60
 # Logging
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=agentos-kernel
+SyslogIdentifier=clove-kernel
 
 # Resource limits
 MemoryMax=512M
@@ -50,7 +50,7 @@ LockPersonality=yes
 MemoryDenyWriteExecute=yes
 
 # Allow write access to specific directories
-ReadWritePaths=/var/lib/agentos
+ReadWritePaths=/var/lib/clove
 ReadWritePaths=/tmp/clove.sock
 
 # Capabilities

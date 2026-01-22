@@ -1,6 +1,6 @@
 # Office World Simulation
 
-A multi-agent simulation where workers compete for promotion under a manager's supervision. Demonstrates AgentOS process isolation, IPC, state management, and LLM integration.
+A multi-agent simulation where workers compete for promotion under a manager's supervision. Demonstrates Clove process isolation, IPC, state management, and LLM integration.
 
 ## Concept
 
@@ -82,10 +82,10 @@ Random events that affect the simulation:
 
 ```bash
 # Terminal 1: Start kernel
-./build/agentos_kernel
+./build/clove_kernel
 
 # Terminal 2: Run simulation
-cd /home/anixd/Documents/AGENTOS
+cd /home/anixd/Documents/CLOVE
 python worlds/examples/office_world/run_office.py
 ```
 
@@ -241,7 +241,7 @@ WORKER_PERSONALITIES = {
 
 ## What This Demonstrates
 
-| AgentOS Feature | How It's Used |
+| Clove Feature | How It's Used |
 |-----------------|---------------|
 | **Process Isolation** | Each worker is a separate OS process |
 | **IPC (send/recv)** | Task assignment, completion reports |

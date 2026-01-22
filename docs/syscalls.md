@@ -1,4 +1,4 @@
-# AgentOS Syscall Reference
+# Clove Syscall Reference
 
 ## Wire Protocol
 
@@ -95,6 +95,43 @@
 
 **Event structure**: `{"type", "data", "source_agent_id", "age_ms"}`
 
+### Metrics
+
+| Op | Name | Payload | Response |
+|----|------|---------|----------|
+| `0xC0` | METRICS_SYSTEM | — | `{"success", "metrics": {"cpu", "memory", "disk", "network"}}` |
+| `0xC1` | METRICS_AGENT | `{"agent_id?"}` | `{"success", "metrics": {"agent_id", "name", "process", "cgroup"}}` |
+| `0xC2` | METRICS_ALL_AGENTS | — | `{"success", "agents": [...], "count"}` |
+| `0xC3` | METRICS_CGROUP | `{"cgroup_path?"}` | `{"success", "metrics": {"cpu", "memory", "pids"}}` |
+
+**System metrics structure:**
+```json
+{
+  "cpu": {"percent", "per_core": [...], "count", "load_avg": [1m, 5m, 15m]},
+  "memory": {"total", "available", "used", "percent"},
+  "disk": {"read_bytes", "write_bytes"},
+  "network": {"bytes_sent", "bytes_recv"}
+}
+```
+
+**Agent metrics structure:**
+```json
+{
+  "agent_id": 123,
+  "name": "worker",
+  "status": "running",
+  "uptime_ms": 12345,
+  "process": {
+    "pid": 456,
+    "cpu": {"percent": 5.2},
+    "memory": {"rss": 1024000, "vms": 2048000},
+    "threads": 4,
+    "fds": 12
+  },
+  "cgroup": {"valid": true, "cpu_usage_usec": 123456, "mem_current": 1024000}
+}
+```
+
 ---
 
 ## Future Syscalls
@@ -129,8 +166,10 @@
 
 | Op | Name | Description | Status |
 |----|------|-------------|--------|
-| `0x90` | METRICS | Get own resource metrics | Planned |
-| `0x91` | METRICS_ALL | Get all agents' metrics (privileged) | Planned |
+| `0xC0` | METRICS_SYSTEM | Get system-wide metrics | **DONE** |
+| `0xC1` | METRICS_AGENT | Get specific agent metrics | **DONE** |
+| `0xC2` | METRICS_ALL_AGENTS | Get all agents' metrics | **DONE** |
+| `0xC3` | METRICS_CGROUP | Get cgroup resource metrics | **DONE** |
 | `0x92` | SET_QUOTA | Set resource quota for agent | Planned |
 
 ---
@@ -139,7 +178,7 @@
 
 Phase 8 added cloud deployment infrastructure without new kernel syscalls. The deployment system operates at the orchestration layer:
 
-- **CLI Tool** (`agentos`): Fleet management from terminal
+- **CLI Tool** (`clove`): Fleet management from terminal
 - **REST API** (`relay/api.py`): Endpoints for machine/agent/token management
 - **Docker Deployment**: Containerized kernels via `deploy/docker/`
 - **AWS Deployment**: EC2 provisioning via `deploy/terraform/aws/`
@@ -164,10 +203,10 @@ See [CLI Reference](../cli/README.md) for usage.
 ## Python SDK
 
 ```python
-from agentos import AgentOSClient
+from clove import CloveClient
 
-with AgentOSClient() as c:
-    c.echo("ping")                              # NOOP
+with CloveClient() as c:
+    c.noop("ping")                              # NOOP
     c.think("What is 2+2?")                     # THINK
     c.exec("ls -la")                            # EXEC
     c.read_file("/tmp/test.txt")                # READ
@@ -190,4 +229,8 @@ with AgentOSClient() as c:
     c.poll_events()                             # POLL_EVENTS
     c.emit_event("CUSTOM", {"msg": "hello"})    # EMIT
     c.unsubscribe(["CUSTOM"])                   # UNSUBSCRIBE
+    c.get_system_metrics()                      # METRICS_SYSTEM
+    c.get_agent_metrics(agent_id=123)           # METRICS_AGENT
+    c.get_all_agent_metrics()                   # METRICS_ALL_AGENTS
+    c.get_cgroup_metrics()                      # METRICS_CGROUP
 ```

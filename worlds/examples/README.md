@@ -1,6 +1,6 @@
-# AgentOS World Simulations
+# Clove World Simulations
 
-Multi-agent simulations demonstrating AgentOS capabilities: process isolation, IPC, state management, and chaos engineering.
+Multi-agent simulations demonstrating Clove capabilities: process isolation, IPC, state management, and chaos engineering.
 
 ## Available Worlds
 
@@ -35,7 +35,7 @@ A competitive office simulation where worker agents compete for promotion under 
 **Run locally:**
 ```bash
 # Start kernel first
-./build/agentos_kernel
+./build/clove_kernel
 
 # Run simulation
 python worlds/examples/office_world/run_office.py
@@ -83,7 +83,7 @@ A production infrastructure simulation with servers, SRE agents, and chaos engin
 **Run locally:**
 ```bash
 # Start kernel first
-./build/agentos_kernel
+./build/clove_kernel
 
 # Run simulation
 python worlds/examples/systems_world/run_systems.py
@@ -99,7 +99,7 @@ python worlds/examples/systems_world/run_systems.py --use-llm
 
 ## Running via Cloud/Relay
 
-Deploy worlds to remote machines using the AgentOS CLI.
+Deploy worlds to remote machines using the Clove CLI.
 
 ### Setup Relay Server
 
@@ -114,21 +114,21 @@ python relay_server.py
 
 ```bash
 # Deploy a Docker kernel
-agentos deploy docker --name sim-kernel
+clove deploy docker --name sim-kernel
 
 # Verify it's connected
-agentos status
+clove status
 ```
 
 ### Run World Remotely
 
 ```bash
 # Run office simulation on remote kernel
-agentos agent run worlds/examples/office_world/run_office.py \
+clove agent run worlds/examples/office_world/run_office.py \
     --machine docker-sim-kernel-xxx
 
 # Run systems simulation on remote kernel
-agentos agent run worlds/examples/systems_world/run_systems.py \
+clove agent run worlds/examples/systems_world/run_systems.py \
     --machine docker-sim-kernel-xxx \
     -- --chaos-level high
 ```
@@ -139,16 +139,16 @@ Run different parts of the simulation on different machines:
 
 ```bash
 # Deploy multiple kernels
-agentos deploy docker --name world-control    # Control plane
-agentos deploy docker --name world-workers    # Worker agents
+clove deploy docker --name world-control    # Control plane
+clove deploy docker --name world-workers    # Worker agents
 
 # Start control on first kernel
-agentos agent run worlds/examples/office_world/manager_agent.py \
+clove agent run worlds/examples/office_world/manager_agent.py \
     --machine docker-world-control-xxx
 
 # Start workers on second kernel
 for name in alice bob charlie diana eve; do
-    agentos agent run worlds/examples/office_world/worker_agent.py \
+    clove agent run worlds/examples/office_world/worker_agent.py \
         --machine docker-world-workers-xxx \
         -- --name $name --personality steady
 done
@@ -158,13 +158,13 @@ done
 
 ```bash
 # Deploy to AWS
-agentos deploy aws --region us-east-1 --name sim-aws
+clove deploy aws --region us-east-1 --name sim-aws
 
 # Deploy to GCP
-agentos deploy gcp --zone us-central1-a --name sim-gcp
+clove deploy gcp --zone us-central1-a --name sim-gcp
 
 # Run simulation on cloud instance
-agentos agent run worlds/examples/systems_world/run_systems.py \
+clove agent run worlds/examples/systems_world/run_systems.py \
     --machine aws-sim-aws-xxx \
     -- --chaos-level extreme --use-llm
 ```
@@ -258,7 +258,7 @@ SYSTEMS_CONFIG = {
 ### "Connection refused"
 Kernel not running. Start with:
 ```bash
-./build/agentos_kernel
+./build/clove_kernel
 ```
 
 ### Agents not communicating
@@ -276,6 +276,6 @@ export GEMINI_API_KEY="your-key"
 ### Remote execution fails
 Check relay status:
 ```bash
-agentos status
-agentos machines list
+clove status
+clove machines list
 ```

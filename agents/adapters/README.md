@@ -1,10 +1,10 @@
-# AgentOS Framework Adapters
+# Clove Framework Adapters
 
-This directory contains adapters that enable popular AI agent frameworks to use AgentOS as their execution backend.
+This directory contains adapters that enable popular AI agent frameworks to use Clove as their execution backend.
 
 ## Why Use These Adapters?
 
-Instead of giving AI agents direct access to your system, these adapters route all operations through AgentOS's permission system:
+Instead of giving AI agents direct access to your system, these adapters route all operations through Clove's permission system:
 
 - **Path restrictions** - Agents can only access approved directories
 - **Command filtering** - Dangerous commands are blocked
@@ -22,9 +22,9 @@ Instead of giving AI agents direct access to your system, these adapters route a
 
 ## Prerequisites
 
-1. AgentOS kernel must be running:
+1. Clove kernel must be running:
 ```bash
-./build/agentos_kernel
+./build/clove_kernel
 ```
 
 2. Install the framework you want to use:
@@ -41,7 +41,7 @@ pip install pyautogen
 
 ## LangChain Adapter
 
-The LangChain adapter provides AgentOS syscalls as LangChain tools.
+The LangChain adapter provides Clove syscalls as LangChain tools.
 
 ### Quick Start
 
@@ -50,13 +50,13 @@ from langchain.agents import create_react_agent, AgentExecutor
 from langchain_openai import ChatOpenAI
 from langchain.prompts import PromptTemplate
 
-# Import AgentOS toolkit
+# Import Clove toolkit
 import sys
-sys.path.insert(0, '/path/to/AGENTOS/agents/adapters')
-from langchain_adapter import AgentOSToolkit
+sys.path.insert(0, '/path/to/CLOVE/agents/adapters')
+from langchain_adapter import CloveToolkit
 
-# Create toolkit (connects to AgentOS)
-toolkit = AgentOSToolkit(permission_level="standard")
+# Create toolkit (connects to Clove)
+toolkit = CloveToolkit(permission_level="standard")
 tools = toolkit.get_tools()
 
 # Create LangChain agent
@@ -71,16 +71,16 @@ result = executor.invoke({"input": "Read the file /tmp/test.txt"})
 
 ### Available Tools
 
-- `agentos_read` - Read files
-- `agentos_write` - Write files
-- `agentos_exec` - Execute commands
-- `agentos_think` - Query LLM
-- `agentos_spawn` - Spawn agents
-- `agentos_http` - HTTP requests
+- `clove_read` - Read files
+- `clove_write` - Write files
+- `clove_exec` - Execute commands
+- `clove_think` - Query LLM
+- `clove_spawn` - Spawn agents
+- `clove_http` - HTTP requests
 
 ## CrewAI Adapter
 
-The CrewAI adapter provides AgentOS-backed tools and agents for CrewAI.
+The CrewAI adapter provides Clove-backed tools and agents for CrewAI.
 
 ### Quick Start
 
@@ -88,11 +88,11 @@ The CrewAI adapter provides AgentOS-backed tools and agents for CrewAI.
 from crewai import Task, Crew
 
 import sys
-sys.path.insert(0, '/path/to/AGENTOS/agents/adapters')
-from crewai_adapter import AgentOSCrewAgent
+sys.path.insert(0, '/path/to/CLOVE/agents/adapters')
+from crewai_adapter import CloveCrewAgent
 
 # Create agent factory
-factory = AgentOSCrewAgent(permission_level="standard")
+factory = CloveCrewAgent(permission_level="standard")
 
 # Create agents
 researcher = factory.create_researcher()
@@ -121,24 +121,24 @@ result = crew.kickoff()
 
 ## AutoGen Adapter
 
-The AutoGen adapter enables AutoGen agents to execute through AgentOS.
+The AutoGen adapter enables AutoGen agents to execute through Clove.
 
 ### Quick Start
 
 ```python
 import sys
-sys.path.insert(0, '/path/to/AGENTOS/agents/adapters')
-from autogen_adapter import AgentOSAssistant, AgentOSUserProxy
+sys.path.insert(0, '/path/to/CLOVE/agents/adapters')
+from autogen_adapter import CloveAssistant, CloveUserProxy
 
-# Create assistant with AgentOS tools
-assistant = AgentOSAssistant(
+# Create assistant with Clove tools
+assistant = CloveAssistant(
     name="coder",
     llm_config={"config_list": [{"model": "gpt-4", "api_key": "..."}]},
     permission_level="standard"
 )
 
-# Create user proxy that executes through AgentOS
-user_proxy = AgentOSUserProxy(
+# Create user proxy that executes through Clove
+user_proxy = CloveUserProxy(
     name="user",
     human_input_mode="NEVER"
 )
@@ -152,11 +152,11 @@ user_proxy.initiate_chat(
 
 ### Code Execution
 
-The `AgentOSUserProxy` automatically routes code execution through AgentOS:
+The `CloveUserProxy` automatically routes code execution through Clove:
 
-- Python code is written to a temp file and executed via `agentos_exec`
-- Bash/shell commands are executed directly via `agentos_exec`
-- All execution respects AgentOS permission settings
+- Python code is written to a temp file and executed via `clove_exec`
+- Bash/shell commands are executed directly via `clove_exec`
+- All execution respects Clove permission settings
 
 ## Permission Levels
 
@@ -174,11 +174,11 @@ All adapters accept a `permission_level` parameter:
 
 ```python
 # LangChain with read-only access
-toolkit = AgentOSToolkit(permission_level="readonly")
+toolkit = CloveToolkit(permission_level="readonly")
 tools = toolkit.get_read_tools()  # Only reading tools
 
 # CrewAI with sandboxed access
-factory = AgentOSCrewAgent(permission_level="sandboxed")
+factory = CloveCrewAgent(permission_level="sandboxed")
 ```
 
 ## Architecture
@@ -190,15 +190,15 @@ factory = AgentOSCrewAgent(permission_level="sandboxed")
 │   LangChain     │     CrewAI      │      AutoGen            │
 │   Agent         │     Crew        │      Agents             │
 ├─────────────────────────────────────────────────────────────┤
-│            AgentOS Framework Adapters                        │
+│            Clove Framework Adapters                        │
 │   (langchain_adapter / crewai_adapter / autogen_adapter)    │
 ├─────────────────────────────────────────────────────────────┤
-│                  AgentOS Python SDK                          │
-│                    (agentos.py)                              │
+│                  Clove Python SDK                          │
+│                    (clove.py)                              │
 ├─────────────────────────────────────────────────────────────┤
 │                Unix Domain Socket IPC                        │
 ├─────────────────────────────────────────────────────────────┤
-│                  AgentOS Kernel                              │
+│                  Clove Kernel                              │
 │        (Permission System, Sandboxing, Quotas)              │
 ├─────────────────────────────────────────────────────────────┤
 │                 System Resources                             │
@@ -208,18 +208,18 @@ factory = AgentOSCrewAgent(permission_level="sandboxed")
 
 ## Troubleshooting
 
-### "Failed to connect to AgentOS kernel"
+### "Failed to connect to Clove kernel"
 
 Make sure the kernel is running:
 ```bash
-./build/agentos_kernel
+./build/clove_kernel
 ```
 
 ### "Permission denied" errors
 
 Check your permission level. Use `standard` for most cases:
 ```python
-toolkit = AgentOSToolkit(permission_level="standard")
+toolkit = CloveToolkit(permission_level="standard")
 ```
 
 ### Framework not installed
@@ -234,5 +234,5 @@ pip install langchain  # or crewai, pyautogen
 Make sure the adapters directory is in your Python path:
 ```python
 import sys
-sys.path.insert(0, '/path/to/AGENTOS/agents/adapters')
+sys.path.insert(0, '/path/to/CLOVE/agents/adapters')
 ```

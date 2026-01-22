@@ -1,12 +1,12 @@
-# AgentOS Python SDK
+# Clove Python SDK
 
-Python client library for communicating with the AgentOS kernel.
+Python client library for communicating with the Clove kernel.
 
 ## Installation
 
 ```bash
 # SDK is included in the repo, just add to path
-export PYTHONPATH="/path/to/AgentOS/agents/python_sdk:$PYTHONPATH"
+export PYTHONPATH="/path/to/Clove/agents/python_sdk:$PYTHONPATH"
 
 # Or copy to your project
 cp agents/python_sdk/agentos.py your_project/
@@ -15,11 +15,11 @@ cp agents/python_sdk/agentos.py your_project/
 ## Quick Start
 
 ```python
-from agentos import AgentOSClient
+from agentos import CloveClient
 
-with AgentOSClient() as client:
+with CloveClient() as client:
     # Echo test
-    result = client.noop("Hello AgentOS!")
+    result = client.noop("Hello Clove!")
     print(result)
 
     # LLM query
@@ -31,23 +31,23 @@ with AgentOSClient() as client:
 
 | File | Description |
 |------|-------------|
-| `agentos.py` | Core SDK - `AgentOSClient` class with all syscalls |
+| `agentos.py` | Core SDK - `CloveClient` class with all syscalls |
 | `agentic.py` | Agentic loop framework - autonomous task execution |
 | `fleet_client.py` | Fleet management - deploy agents to remote machines |
 | `remote_client.py` | Remote agent SDK - run agents via relay server |
 
-## AgentOSClient API
+## CloveClient API
 
 ### Connection
 
 ```python
-client = AgentOSClient(socket_path='/tmp/clove.sock')
+client = CloveClient(socket_path='/tmp/clove.sock')
 client.connect()
 # ... use client ...
 client.disconnect()
 
 # Or use context manager (recommended)
-with AgentOSClient() as client:
+with CloveClient() as client:
     pass
 ```
 
@@ -140,6 +140,29 @@ perms = client.get_permissions()
 client.set_permissions(level="sandboxed")
 ```
 
+### Metrics
+
+```python
+# System metrics (CPU, memory, disk, network)
+metrics = client.get_system_metrics()
+print(f"CPU: {metrics['metrics']['cpu']['percent']}%")
+print(f"Memory: {metrics['metrics']['memory']['percent']}%")
+
+# Agent metrics
+agent_metrics = client.get_agent_metrics(agent_id=123)
+print(f"Process CPU: {agent_metrics['metrics']['process']['cpu']['percent']}%")
+
+# All agent metrics
+all_agents = client.get_all_agent_metrics()
+for agent in all_agents['agents']:
+    print(f"{agent['name']}: {agent['process']['cpu']['percent']}%")
+
+# Cgroup metrics (if sandboxed)
+cgroup = client.get_cgroup_metrics()
+if cgroup.get('success'):
+    print(f"Memory usage: {cgroup['metrics']['memory']['current']}")
+```
+
 ## Agentic Loop
 
 For autonomous task execution with LLM reasoning:
@@ -151,7 +174,7 @@ from agentic import run_task, AgenticLoop
 result = run_task("Create a Python script that prints Fibonacci numbers")
 
 # With more control
-with AgentOSClient() as client:
+with CloveClient() as client:
     loop = AgenticLoop(client, max_iterations=20, verbose=True)
     result = loop.run("Find all TODO comments in the codebase")
     print(f"Completed in {result.iterations} iterations")
@@ -186,7 +209,7 @@ loop.add_tool(Tool(
 ## Error Handling
 
 ```python
-with AgentOSClient() as client:
+with CloveClient() as client:
     result = client.think("Hello")
 
     if not result.get('success'):
@@ -295,15 +318,15 @@ for result in results:
 For running agents that connect through the relay server.
 
 ```python
-from remote_client import RemoteAgentOS
+from remote_client import RemoteClove
 
-agent = RemoteAgentOS(
+agent = RemoteClove(
     name="my_agent",
     relay_url="ws://relay.example.com:8765",
     token="your_agent_token"
 )
 
-# Use like normal AgentOS
+# Use like normal Clove
 agent.write("Hello from remote!")
 result = agent.think("What is 2+2?")
 agent.exit(0)

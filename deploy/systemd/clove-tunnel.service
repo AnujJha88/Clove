@@ -1,23 +1,23 @@
 [Unit]
-Description=AgentOS Relay Tunnel Client
-Documentation=https://github.com/agentos-project/agentos
-After=agentos-kernel.service
-Requires=agentos-kernel.service
-BindsTo=agentos-kernel.service
+Description=Clove Relay Tunnel Client
+Documentation=https://github.com/clove-project/clove
+After=clove-kernel.service
+Requires=clove-kernel.service
+BindsTo=clove-kernel.service
 
 [Service]
 Type=simple
-User=agentos
-Group=agentos
+User=clove
+Group=clove
 
 # Environment configuration
-EnvironmentFile=-/etc/agentos/config.env
+EnvironmentFile=-/etc/clove/config.env
 
 # Working directory
-WorkingDirectory=/opt/agentos
+WorkingDirectory=/opt/clove
 
 # Main executable
-ExecStart=/usr/bin/python3 /opt/agentos/scripts/tunnel_client.py
+ExecStart=/usr/bin/python3 /opt/clove/scripts/tunnel_client.py
 
 # Restart configuration
 Restart=always
@@ -27,7 +27,7 @@ WatchdogSec=120
 # Logging
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=agentos-tunnel
+SyslogIdentifier=clove-tunnel
 
 # Resource limits
 MemoryMax=128M

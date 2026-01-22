@@ -67,7 +67,22 @@ A microkernel operating system for AI agents. Run multiple autonomous agents as 
 | Web Dashboard | Done | Real-time browser-based monitoring UI |
 | Agentic Loop | Done | Claude Code-style autonomous agent framework |
 | Remote Connectivity | Done | Relay server for cloud agent connections |
-| **Cloud Deployment** | **Done** | **CLI for deploying to Docker, AWS, GCP** |
+| Cloud Deployment | Done | CLI for deploying to Docker, AWS, GCP |
+| **Metrics System** | **Done** | **Kernel-level CPU, memory, disk, network metrics** |
+
+## Quick Demo: Crash Isolation
+
+See Clove's core value proposition in action:
+
+```bash
+# Terminal 1: Start kernel
+./build/clove_kernel
+
+# Terminal 2: Run the crash isolation demo
+python demos/crash_isolation_demo.py
+```
+
+This demo spawns 3 agents, crashes one, and shows the others continue unaffected.
 
 ## Web Dashboard
 
@@ -80,7 +95,7 @@ Browser (localhost:8000) → WebSocket → ws_proxy.py → Unix Socket → Kerne
 **Quick Start:**
 ```bash
 # Terminal 1: Kernel
-./build/clove
+./build/clove_kernel
 
 # Terminal 2: WebSocket proxy
 python3 agents/dashboard/ws_proxy.py
@@ -91,7 +106,15 @@ cd agents/dashboard && python3 -m http.server 8000
 # Open: http://localhost:8000
 ```
 
-**Features:** Live agent monitoring, spawn/kill from UI, process hierarchy, system stats, auto-reconnect.
+**Features:**
+- Live agent monitoring with real-time status updates
+- Spawn/kill agents directly from the UI
+- Process hierarchy visualization
+- System resource stats (CPU, memory, agents)
+- Auto-reconnect on connection loss
+
+<!-- TODO: Add dashboard screenshot here -->
+<!-- ![Dashboard Screenshot](docs/images/dashboard.png) -->
 
 ## Agentic Loop Framework
 
@@ -323,10 +346,14 @@ export VCPKG_ROOT="$HOME/vcpkg"
 
 ```bash
 # System dependencies
-sudo apt install -y build-essential cmake pkg-config libssl-dev python3 python3-pip
+sudo apt install -y build-essential cmake pkg-config libssl-dev python3 python3-pip python3-venv
+
+# Create and activate virtual environment
+python3 -m venv clove_env
+source clove_env/bin/activate
 
 # Python dependencies (for LLM service)
-pip3 install google-genai
+pip install google-genai
 ```
 
 ### 3. Configure API Key
@@ -342,13 +369,13 @@ cp .env.example .env
 mkdir -p build && cd build
 cmake ..
 make -j$(nproc)
-./agentos_kernel
+./clove_kernel
 ```
 
 ## Python SDK
 
 ```python
-from agentos import AgentOSClient
+from clove import CloveClient
 
 with CloveClient() as client:
     # LLM query
@@ -368,6 +395,15 @@ with CloveClient() as client:
 
     # HTTP with domain restrictions
     client.http("https://api.github.com/users/octocat")
+
+    # System metrics (CPU, memory, disk, network)
+    metrics = client.get_system_metrics()
+    print(f"CPU: {metrics['metrics']['cpu']['percent']}%")
+
+    # Agent metrics
+    agents = client.get_all_agent_metrics()
+    for agent in agents['agents']:
+        print(f"{agent['name']}: {agent['process']['cpu']['percent']}%")
 ```
 
 ## Permission System
@@ -408,8 +444,11 @@ Clove adapters for existing frameworks - all operations go through the permissio
 | 0x11 | SYS_KILL | Kill agent |
 | 0x12 | SYS_LIST | List agents |
 | 0x20-0x23 | IPC | Inter-agent messaging |
+| 0x30-0x33 | STATE | Key-value state store |
 | 0x40-0x41 | PERMS | Permission management |
 | 0x50 | SYS_HTTP | HTTP request |
+| 0x60-0x63 | EVENTS | Pub/sub event system |
+| 0xC0-0xC3 | METRICS | System/agent metrics |
 | 0xFF | SYS_EXIT | Disconnect |
 
 ## Project Structure
@@ -419,6 +458,7 @@ Clove/
 ├── src/
 │   ├── main.cpp
 │   ├── kernel/           # Kernel, reactor, LLM client, permissions
+│   │   └── metrics/      # System and agent metrics collection
 │   ├── ipc/              # Protocol and Unix socket server
 │   ├── runtime/          # Sandbox (namespaces/cgroups) and agent lifecycle
 │   └── util/             # Logging utilities
@@ -443,11 +483,25 @@ Clove/
 │   ├── docker/           # Dockerfile, docker-compose.yml
 │   ├── terraform/        # AWS and GCP Terraform modules
 │   └── systemd/          # Systemd service files
+├── demos/                # Demo scripts showcasing Clove features
+├── test_suite/           # Test suite for all components
+├── docs/                 # Documentation
 ├── build/
 ├── CMakeLists.txt
 ├── vcpkg.json
 └── STATUS.md
 ```
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Getting Started](docs/getting-started.md) | Installation and first steps |
+| [Architecture](docs/architecture.md) | System design and internals |
+| [Syscalls Reference](docs/syscalls.md) | All available syscalls |
+| [CLI Reference](cli/README.md) | Fleet management CLI |
+| [Python SDK](agents/python_sdk/README.md) | SDK usage and API |
+| [Examples](agents/examples/README.md) | Demo agents and use cases |
 
 ## Requirements
 

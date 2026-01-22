@@ -1,8 +1,8 @@
-# AgentOS Kernel Extensions Plan
+# Clove Kernel Extensions Plan
 
 ## Overview
 
-Extend the AgentOS kernel to support distributed agents, inter-agent communication, shared state, permissions, and cloud connectivity - enabling agents running anywhere to securely interact with your local system.
+Extend the Clove kernel to support distributed agents, inter-agent communication, shared state, permissions, and cloud connectivity - enabling agents running anywhere to securely interact with your local system.
 
 ---
 
@@ -19,7 +19,7 @@ Extend the AgentOS kernel to support distributed agents, inter-agent communicati
 │        └───────────────┼───────────────┘                      │
 │                        │                                      │
 │                  ┌─────▼─────┐                                │
-│                  │   Relay   │  (AgentOS Cloud Relay)        │
+│                  │   Relay   │  (Clove Cloud Relay)        │
 │                  │  Server   │                                │
 │                  └─────┬─────┘                                │
 │                        │                                      │
@@ -93,7 +93,7 @@ Extend the AgentOS kernel to support distributed agents, inter-agent communicati
 - `src/ipc/protocol.hpp` - Add new opcodes
 - `src/kernel/kernel.hpp` - Add message queues per agent
 - `src/kernel/kernel.cpp` - Implement handlers
-- `agents/python_sdk/agentos.py` - Add `send()`, `recv()`, `broadcast()`
+- `agents/python_sdk/clove.py` - Add `send()`, `recv()`, `broadcast()`
 
 **Kernel data structures:**
 ```cpp
@@ -155,7 +155,7 @@ std::unordered_map<std::string, uint32_t> agent_names_;
 - `src/ipc/protocol.hpp` - Add opcodes
 - `src/kernel/kernel.hpp` - Add state store
 - `src/kernel/kernel.cpp` - Implement handlers
-- `agents/python_sdk/agentos.py` - Add `store()`, `fetch()`, `delete_key()`, `list_keys()`
+- `agents/python_sdk/clove.py` - Add `store()`, `fetch()`, `delete_key()`, `list_keys()`
 
 **Kernel data structures:**
 ```cpp
@@ -229,7 +229,7 @@ enum class PermissionLevel {
 **Files to modify:**
 - `src/kernel/kernel.hpp` - Add permissions map
 - `src/kernel/kernel.cpp` - Check permissions before each syscall
-- `agents/python_sdk/agentos.py` - Add `get_permissions()`
+- `agents/python_sdk/clove.py` - Add `get_permissions()`
 
 ---
 
@@ -274,7 +274,7 @@ enum class PermissionLevel {
 **Files to modify:**
 - `src/ipc/protocol.hpp` - Add opcodes
 - `src/kernel/kernel.cpp` - Implement using cpp-httplib (already a dependency)
-- `agents/python_sdk/agentos.py` - Add `http()`, `download()`
+- `agents/python_sdk/clove.py` - Add `http()`, `download()`
 
 ---
 
@@ -333,7 +333,7 @@ enum class EventType {
 **Files to modify:**
 - `src/kernel/kernel.hpp` - Add event queues, subscriptions
 - `src/kernel/kernel.cpp` - Event emission on actions, poll handler
-- `agents/python_sdk/agentos.py` - Add `subscribe()`, `poll_events()`, `emit()`
+- `agents/python_sdk/clove.py` - Add `subscribe()`, `poll_events()`, `emit()`
 
 ---
 
@@ -534,7 +534,7 @@ src/
 
 agents/
 ├── python_sdk/
-│   ├── agentos.py              # Extended client
+│   ├── clove.py              # Extended client
 │   ├── agentic.py              # Agentic loop
 │   └── remote_client.py        # Cloud agent SDK
 └── examples/
@@ -814,14 +814,14 @@ python3 ops_platform/main.py benchmark \
 
 ## Phase 8: Cloud Deployment System ✅ COMPLETE
 
-**Goal:** One-command deploy AgentOS to any cloud or local Docker, manage a fleet of kernels from your terminal.
+**Goal:** One-command deploy Clove to any cloud or local Docker, manage a fleet of kernels from your terminal.
 
 ### Architecture
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
 │                         YOUR TERMINAL                             │
-│  $ agentos deploy aws    $ agentos status    $ agentos agent run │
+│  $ clove deploy aws    $ clove status    $ clove agent run │
 └───────────────────────────────┬──────────────────────────────────┘
                                 │
                                 ▼
@@ -837,7 +837,7 @@ python3 ops_platform/main.py benchmark \
          ▼                   ▼                   ▼
 ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
 │  AWS EC2        │ │  GCP Compute    │ │  Docker Local   │
-│  AgentOS Kernel │ │  AgentOS Kernel │ │  AgentOS Kernel │
+│  Clove Kernel │ │  Clove Kernel │ │  Clove Kernel │
 └─────────────────┘ └─────────────────┘ └─────────────────┘
 ```
 
@@ -846,7 +846,7 @@ python3 ops_platform/main.py benchmark \
 | Component | Location | Description |
 |-----------|----------|-------------|
 | CLI Tool | `cli/` | Click-based CLI with deploy/status/machines/agent/tokens commands |
-| Config Manager | `cli/config.py` | ~/.agentos/config.yaml management |
+| Config Manager | `cli/config.py` | ~/.clove/config.yaml management |
 | Relay API Client | `cli/relay_api.py` | REST API client for CLI |
 | REST API | `relay/api.py` | Fleet management endpoints |
 | Fleet Manager | `relay/fleet.py` | Machine registration and tracking |
@@ -861,32 +861,32 @@ python3 ops_platform/main.py benchmark \
 
 ```bash
 # Deployment
-agentos deploy docker [--name NAME]
-agentos deploy aws [--instance-type t3.micro] [--region us-east-1]
-agentos deploy gcp [--machine-type n1-standard-1] [--zone us-central1-a]
+clove deploy docker [--name NAME]
+clove deploy aws [--instance-type t3.micro] [--region us-east-1]
+clove deploy gcp [--machine-type n1-standard-1] [--zone us-central1-a]
 
 # Fleet Management
-agentos status                    # Show all machines
-agentos machines list             # Detailed machine list
-agentos machines remove <id>      # Remove machine
-agentos machines ssh <id>         # SSH into machine
-agentos machines logs <id>        # View machine logs
+clove status                    # Show all machines
+clove machines list             # Detailed machine list
+clove machines remove <id>      # Remove machine
+clove machines ssh <id>         # SSH into machine
+clove machines logs <id>        # View machine logs
 
 # Agent Execution
-agentos agent run <script.py> [--machine <id>|--all]
-agentos agent list [--machine <id>]
-agentos agent stop <id> --machine <id>
-agentos agent create <name> [--template basic|worker|supervisor]
+clove agent run <script.py> [--machine <id>|--all]
+clove agent list [--machine <id>]
+clove agent stop <id> --machine <id>
+clove agent create <name> [--template basic|worker|supervisor]
 
 # Tokens
-agentos tokens create machine --name my-server
-agentos tokens create agent --target-machine <id>
-agentos tokens list
-agentos tokens revoke <id>
+clove tokens create machine --name my-server
+clove tokens create agent --target-machine <id>
+clove tokens list
+clove tokens revoke <id>
 
 # Config
-agentos config set relay_url wss://relay.example.com
-agentos config show
+clove config set relay_url wss://relay.example.com
+clove config show
 ```
 
 ---

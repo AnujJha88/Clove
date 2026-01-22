@@ -1,6 +1,6 @@
-# AgentOS MCP Server
+# Clove MCP Server
 
-This MCP (Model Context Protocol) server exposes AgentOS syscalls as tools for Claude Desktop.
+This MCP (Model Context Protocol) server exposes Clove syscalls as tools for Claude Desktop.
 
 ## What This Enables
 
@@ -8,18 +8,18 @@ Claude Desktop can:
 - Read and write files on your PC
 - Execute shell commands
 - Spawn and manage agents
-- Query the LLM through AgentOS
+- Query the LLM through Clove
 - Make HTTP requests
 
-All operations go through AgentOS's permission system.
+All operations go through Clove's permission system.
 
 ## Installation
 
-### 1. Make sure AgentOS kernel is running
+### 1. Make sure Clove kernel is running
 
 ```bash
-cd /home/anixd/Documents/AGENTOS/build
-./agentos_kernel
+cd /home/anixd/Documents/CLOVE/build
+./clove_kernel
 ```
 
 ### 2. Add to Claude Desktop config
@@ -29,9 +29,9 @@ Edit `~/.config/Claude/claude_desktop_config.json` (Linux) or the equivalent on 
 ```json
 {
   "mcpServers": {
-    "agentos": {
+    "clove": {
       "command": "python3",
-      "args": ["/home/anixd/Documents/AGENTOS/agents/mcp/mcp_server.py"]
+      "args": ["/home/anixd/Documents/CLOVE/agents/mcp/mcp_server.py"]
     }
   }
 }
@@ -39,20 +39,20 @@ Edit `~/.config/Claude/claude_desktop_config.json` (Linux) or the equivalent on 
 
 ### 3. Restart Claude Desktop
 
-Claude will now have access to AgentOS tools.
+Claude will now have access to Clove tools.
 
 ## Available Tools
 
 | Tool | Description |
 |------|-------------|
-| `agentos_read` | Read a file from the filesystem |
-| `agentos_write` | Write content to a file |
-| `agentos_exec` | Execute a shell command |
-| `agentos_think` | Query the LLM |
-| `agentos_spawn` | Spawn a new agent |
-| `agentos_list_agents` | List running agents |
-| `agentos_kill` | Kill an agent |
-| `agentos_http` | Make an HTTP request |
+| `clove_read` | Read a file from the filesystem |
+| `clove_write` | Write content to a file |
+| `clove_exec` | Execute a shell command |
+| `clove_think` | Query the LLM |
+| `clove_spawn` | Spawn a new agent |
+| `clove_list_agents` | List running agents |
+| `clove_kill` | Kill an agent |
+| `clove_http` | Make an HTTP request |
 
 ## Example Usage in Claude Desktop
 
@@ -66,7 +66,7 @@ Once configured, you can ask Claude:
 
 ## Security
 
-All operations go through AgentOS's permission system:
+All operations go through Clove's permission system:
 - Path restrictions for file access
 - Command filtering for exec
 - Domain whitelist for HTTP
@@ -74,11 +74,11 @@ All operations go through AgentOS's permission system:
 
 ## Troubleshooting
 
-### "Failed to connect to AgentOS kernel"
+### "Failed to connect to Clove kernel"
 
 Make sure the kernel is running:
 ```bash
-./build/agentos_kernel
+./build/clove_kernel
 ```
 
 ### Tool not working

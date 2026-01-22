@@ -1,4 +1,4 @@
-# AgentOS LLM Service
+# Clove LLM Service
 
 Python subprocess that handles LLM API calls for the kernel.
 

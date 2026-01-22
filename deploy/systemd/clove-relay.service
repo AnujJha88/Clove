@@ -1,22 +1,22 @@
 [Unit]
-Description=AgentOS Relay Server
-Documentation=https://github.com/agentos-project/agentos
+Description=Clove Relay Server
+Documentation=https://github.com/clove-project/clove
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-User=agentos
-Group=agentos
+User=clove
+Group=clove
 
 # Environment configuration
-EnvironmentFile=-/etc/agentos/relay.env
+EnvironmentFile=-/etc/clove/relay.env
 
 # Working directory
-WorkingDirectory=/opt/agentos/relay
+WorkingDirectory=/opt/clove/relay
 
 # Main executable (runs both WebSocket and REST API)
-ExecStart=/usr/bin/python3 /opt/agentos/relay/relay_server.py --host 0.0.0.0 --port 8765
+ExecStart=/usr/bin/python3 /opt/clove/relay/relay_server.py --host 0.0.0.0 --port 8765
 
 # Restart configuration
 Restart=always
@@ -26,7 +26,7 @@ WatchdogSec=60
 # Logging
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=agentos-relay
+SyslogIdentifier=clove-relay
 
 # Resource limits
 MemoryMax=1G
@@ -47,7 +47,7 @@ RestrictNamespaces=yes
 RestrictRealtime=yes
 
 # Allow write access to data directories
-ReadWritePaths=/var/lib/agentos
+ReadWritePaths=/var/lib/clove
 
 [Install]
 WantedBy=multi-user.target

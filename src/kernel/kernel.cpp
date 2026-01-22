@@ -31,6 +31,7 @@ Kernel::Kernel(const Config& config)
     , agent_manager_(std::make_unique<runtime::AgentManager>(config.socket_path))
     , world_engine_(std::make_unique<WorldEngine>())
     , tunnel_client_(std::make_unique<TunnelClient>())
+    , metrics_collector_(std::make_unique<clove::metrics::MetricsCollector>())
 {
     // Initialize LLM client
     LLMConfig llm_config;
@@ -326,6 +327,19 @@ ipc::Message Kernel::handle_message(const ipc::Message& msg) {
 
         case ipc::SyscallOp::SYS_TUNNEL_CONFIG:
             return handle_tunnel_config(msg);
+
+        // Metrics syscalls
+        case ipc::SyscallOp::SYS_METRICS_SYSTEM:
+            return handle_metrics_system(msg);
+
+        case ipc::SyscallOp::SYS_METRICS_AGENT:
+            return handle_metrics_agent(msg);
+
+        case ipc::SyscallOp::SYS_METRICS_ALL_AGENTS:
+            return handle_metrics_all_agents(msg);
+
+        case ipc::SyscallOp::SYS_METRICS_CGROUP:
+            return handle_metrics_cgroup(msg);
 
         default:
             spdlog::warn("Unknown opcode: 0x{:02x}", static_cast<uint8_t>(msg.opcode));
@@ -1445,7 +1459,12 @@ ipc::Message Kernel::handle_subscribe(const ipc::Message& msg) {
         json j = json::parse(msg.payload_str());
 
         std::vector<std::string> event_types;
-        if (j.contains("events") && j["events"].is_array()) {
+        // Accept both "events" and "event_types" keys for compatibility
+        if (j.contains("event_types") && j["event_types"].is_array()) {
+            for (const auto& e : j["event_types"]) {
+                event_types.push_back(e.get<std::string>());
+            }
+        } else if (j.contains("events") && j["events"].is_array()) {
             for (const auto& e : j["events"]) {
                 event_types.push_back(e.get<std::string>());
             }
@@ -1492,7 +1511,12 @@ ipc::Message Kernel::handle_unsubscribe(const ipc::Message& msg) {
         bool unsubscribe_all = j.value("all", false);
 
         if (!unsubscribe_all) {
-            if (j.contains("events") && j["events"].is_array()) {
+            // Accept both "events" and "event_types" keys for compatibility
+            if (j.contains("event_types") && j["event_types"].is_array()) {
+                for (const auto& e : j["event_types"]) {
+                    event_types.push_back(e.get<std::string>());
+                }
+            } else if (j.contains("events") && j["events"].is_array()) {
                 for (const auto& e : j["events"]) {
                     event_types.push_back(e.get<std::string>());
                 }
@@ -2281,6 +2305,141 @@ void Kernel::handle_tunnel_syscall(uint32_t agent_id, uint8_t opcode,
         static_cast<uint8_t>(response.opcode),
         response.payload
     );
+}
+
+// ============================================================================
+// Metrics Syscall Handlers
+// ============================================================================
+
+ipc::Message Kernel::handle_metrics_system(const ipc::Message& msg) {
+    // Collect system-wide metrics
+    auto metrics = metrics_collector_->collect_system();
+
+    json response;
+    response["success"] = true;
+    response["metrics"] = metrics.to_json();
+
+    return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_METRICS_SYSTEM, response.dump());
+}
+
+ipc::Message Kernel::handle_metrics_agent(const ipc::Message& msg) {
+    json request;
+    try {
+        request = json::parse(msg.payload_str());
+    } catch (...) {
+        json response;
+        response["success"] = false;
+        response["error"] = "Invalid JSON payload";
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_METRICS_AGENT, response.dump());
+    }
+
+    // Get agent ID from request, default to caller's ID
+    uint32_t target_agent_id = request.value("agent_id", msg.agent_id);
+
+    // Find the agent
+    auto target_agent = agent_manager_->get_agent(target_agent_id);
+
+    if (!target_agent) {
+        json response;
+        response["success"] = false;
+        response["error"] = "Agent not found";
+        response["agent_id"] = target_agent_id;
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_METRICS_AGENT, response.dump());
+    }
+
+    // Get agent metrics (includes uptime calculation)
+    auto agent_metrics = target_agent->get_metrics();
+
+    // Determine cgroup path (sandboxed agents have cgroups)
+    std::string cgroup_path;
+    if (target_agent->is_running()) {
+        cgroup_path = "clove/agent-" + std::to_string(target_agent->id());
+    }
+
+    // Collect detailed metrics
+    auto metrics = metrics_collector_->collect_agent(
+        target_agent->id(),
+        target_agent->pid(),
+        cgroup_path,
+        target_agent->name(),
+        runtime::agent_state_to_string(target_agent->state()),
+        agent_metrics.uptime_seconds * 1000
+    );
+
+    json response;
+    response["success"] = true;
+    response["metrics"] = metrics.to_json();
+
+    return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_METRICS_AGENT, response.dump());
+}
+
+ipc::Message Kernel::handle_metrics_all_agents(const ipc::Message& msg) {
+    auto agents = agent_manager_->list_agents();
+
+    json agent_metrics_list = json::array();
+
+    for (const auto& agent : agents) {
+        // Get agent's internal metrics
+        auto agent_info = agent->get_metrics();
+
+        // Determine cgroup path
+        std::string cgroup_path;
+        if (agent->is_running()) {
+            cgroup_path = "clove/agent-" + std::to_string(agent->id());
+        }
+
+        // Collect detailed metrics
+        auto metrics = metrics_collector_->collect_agent(
+            agent->id(),
+            agent->pid(),
+            cgroup_path,
+            agent->name(),
+            runtime::agent_state_to_string(agent->state()),
+            agent_info.uptime_seconds * 1000
+        );
+
+        agent_metrics_list.push_back(metrics.to_json());
+    }
+
+    json response;
+    response["success"] = true;
+    response["agents"] = agent_metrics_list;
+    response["count"] = agent_metrics_list.size();
+
+    return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_METRICS_ALL_AGENTS, response.dump());
+}
+
+ipc::Message Kernel::handle_metrics_cgroup(const ipc::Message& msg) {
+    json request;
+    try {
+        request = json::parse(msg.payload_str());
+    } catch (...) {
+        json response;
+        response["success"] = false;
+        response["error"] = "Invalid JSON payload";
+        return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_METRICS_CGROUP, response.dump());
+    }
+
+    std::string cgroup_path = request.value("cgroup_path", "");
+
+    // If no path specified, try to get caller's cgroup
+    if (cgroup_path.empty()) {
+        // Default to agent's cgroup if sandboxed
+        cgroup_path = "clove/agent-" + std::to_string(msg.agent_id);
+    }
+
+    auto metrics = metrics_collector_->collect_cgroup(cgroup_path);
+
+    json response;
+    response["success"] = metrics.valid;
+    if (metrics.valid) {
+        response["metrics"] = metrics.to_json();
+    } else {
+        response["error"] = "Cgroup not found or not readable";
+        response["cgroup_path"] = cgroup_path;
+    }
+
+    return ipc::Message(msg.agent_id, ipc::SyscallOp::SYS_METRICS_CGROUP, response.dump());
 }
 
 } // namespace agentos::kernel

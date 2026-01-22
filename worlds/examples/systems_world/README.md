@@ -1,6 +1,6 @@
 # Systems World Simulation
 
-A production infrastructure simulation with servers, an SRE agent, and chaos engineering. Demonstrates AgentOS for infrastructure monitoring, incident response, and fault tolerance testing.
+A production infrastructure simulation with servers, an SRE agent, and chaos engineering. Demonstrates Clove for infrastructure monitoring, incident response, and fault tolerance testing.
 
 ## Concept
 
@@ -99,10 +99,10 @@ A production infrastructure simulation with servers, an SRE agent, and chaos eng
 
 ```bash
 # Terminal 1: Start kernel
-./build/agentos_kernel
+./build/clove_kernel
 
 # Terminal 2: Run simulation
-cd /home/anixd/Documents/AGENTOS
+cd /home/anixd/Documents/CLOVE
 python worlds/examples/systems_world/run_systems.py
 ```
 
@@ -318,7 +318,7 @@ SYSTEMS_CONFIG = {
 
 ## What This Demonstrates
 
-| AgentOS Feature | How It's Used |
+| Clove Feature | How It's Used |
 |-----------------|---------------|
 | **Process Isolation** | Each server is a separate process (can crash independently) |
 | **IPC (send/recv)** | Metrics reporting, remediation commands |

@@ -74,17 +74,17 @@ def main():
         # Simple question
         result = client.think("What is the capital of France?")
         print(f"Q: What is the capital of France?")
-        print(f"A: {result['response']}\n")
+        print(f"A: {result['content']}\n")
 
         # Math problem
         result = client.think("Calculate: 123 * 456")
         print(f"Q: Calculate: 123 * 456")
-        print(f"A: {result['response']}\n")
+        print(f"A: {result['content']}\n")
 
         # Code generation
         result = client.think("Write a Python function to check if a number is prime")
         print(f"Q: Write a Python function to check if a number is prime")
-        print(f"A: {result['response']}\n")
+        print(f"A: {result['content']}\n")
 
         print("✅ Test 1 PASSED")
 
@@ -134,7 +134,7 @@ def main():
 
         print(f"Image: /tmp/test_image.png (1x1 red pixel)")
         print(f"Q: What color is this image?")
-        print(f"A: {result['response']}\n")
+        print(f"A: {result['content']}\n")
 
         print("✅ Test 2 PASSED")
 
@@ -171,7 +171,7 @@ def main():
             "Write a creative name for a coffee shop",
             temperature=1.5
         )
-        print(f"Creative name: {result['response']}\n")
+        print(f"Creative name: {result['content']}\n")
 
         # Low temperature (deterministic)
         print("--- Low Temperature (0.1) ---")
@@ -179,7 +179,7 @@ def main():
             "What is 2 + 2?",
             temperature=0.1
         )
-        print(f"Math answer: {result['response']}\n")
+        print(f"Math answer: {result['content']}\n")
 
         # System instruction
         print("--- System Instruction ---")
@@ -187,7 +187,7 @@ def main():
             "Hello, how are you?",
             system_instruction="You are a pirate. Always respond like a pirate."
         )
-        print(f"Pirate response: {result['response']}\n")
+        print(f"Pirate response: {result['content']}\n")
 
         # Thinking levels (if supported by model)
         print("--- Extended Thinking ---")
@@ -195,7 +195,7 @@ def main():
             "Explain quantum entanglement",
             thinking_level="medium"
         )
-        print(f"Explanation: {result['response']}\n")
+        print(f"Explanation: {result['content']}\n")
 
         print("✅ Test 3 PASSED")
 
@@ -440,7 +440,7 @@ from clove import CloveClient
 
 with CloveClient() as client:
     # Register with a name
-    client.register_agent("message-processor")
+    client.register_name("message-processor")
     print("[Worker] Registered as 'message-processor'")
 
     # Process messages for 10 seconds
@@ -503,7 +503,7 @@ def main():
         print()
 
         # Cleanup
-        client.kill_agent(worker_id)
+        client.kill(agent_id=worker_id)
 
         print("✅ Test 7 PASSED")
 
@@ -545,7 +545,7 @@ import sys
 name = sys.argv[1]
 
 with CloveClient() as client:
-    client.register_agent(name)
+    client.register_name(name)
     print(f"[{name}] Registered and listening...")
 
     for i in range(10):
@@ -593,7 +593,7 @@ def main():
         # Cleanup
         print("--- Cleaning up ---")
         for agent_id in listeners:
-            client.kill_agent(agent_id)
+            client.kill(agent_id=agent_id)
 
         print("\n✅ Test 8 PASSED")
 
@@ -857,8 +857,8 @@ with CloveClient() as client:
 
         # Cleanup
         print("--- Cleaning up ---")
-        client.kill_agent(sub1)
-        client.kill_agent(sub2)
+        client.kill(agent_id=sub1)
+        client.kill(agent_id=sub2)
 
         print("\n✅ Test 11 PASSED")
 
@@ -905,7 +905,7 @@ with CloveClient() as client:
     client.join_network(network_name)
 
     # Register name
-    client.register_agent(agent_name)
+    client.register_name(agent_name)
 
     # Listen for messages
     for i in range(10):
@@ -981,7 +981,7 @@ def main():
         # Cleanup
         print("--- Cleaning up ---")
         for agent_id in members:
-            client.kill_agent(agent_id)
+            client.kill(agent_id=agent_id)
 
         client.delete_network(network_name)
 
@@ -1101,11 +1101,11 @@ def main():
 
         # Cleanup
         try:
-            client.kill_agent(memory_agent)
+            client.kill(agent_id=memory_agent)
         except:
             pass
         try:
-            client.kill_agent(cpu_agent)
+            client.kill(agent_id=cpu_agent)
         except:
             pass
 
@@ -1241,7 +1241,7 @@ def main():
 
             # Cleanup
             try:
-                client.kill_agent(agent_id)
+                client.kill(agent_id=agent_id)
             except:
                 pass
 

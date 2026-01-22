@@ -22,11 +22,19 @@
 #include "kernel/permissions.hpp"
 #include "kernel/world_engine.hpp"
 #include "kernel/tunnel_client.hpp"
+#include "kernel/metrics/metrics.hpp"
 #include "ipc/socket_server.hpp"
 #include "runtime/agent_process.hpp"
 #include <nlohmann/json.hpp>
 
 namespace agentos::kernel {
+
+// Import clove::kernel types into this namespace
+using clove::kernel::TunnelClient;
+using clove::kernel::TunnelConfig;
+using clove::kernel::TunnelEvent;
+using clove::kernel::TunnelStatus;
+using clove::kernel::RemoteAgentInfo;
 
 // IPC Message for agent-to-agent communication
 struct IPCMessage {
@@ -149,6 +157,7 @@ private:
     std::unique_ptr<LLMClient> llm_client_;
     std::unique_ptr<WorldEngine> world_engine_;
     std::unique_ptr<TunnelClient> tunnel_client_;
+    std::unique_ptr<clove::metrics::MetricsCollector> metrics_collector_;
 
     // IPC: Agent mailboxes (message queues per agent)
     std::unordered_map<uint32_t, std::queue<IPCMessage>> agent_mailboxes_;
@@ -250,6 +259,12 @@ private:
     void process_tunnel_events();
     void handle_tunnel_syscall(uint32_t agent_id, uint8_t opcode,
                               const std::vector<uint8_t>& payload);
+
+    // Metrics syscall handlers
+    ipc::Message handle_metrics_system(const ipc::Message& msg);
+    ipc::Message handle_metrics_agent(const ipc::Message& msg);
+    ipc::Message handle_metrics_all_agents(const ipc::Message& msg);
+    ipc::Message handle_metrics_cgroup(const ipc::Message& msg);
 
     // Update client in reactor (for write events)
     void update_client_events(int fd);

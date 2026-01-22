@@ -1,0 +1,186 @@
+{
+  "benchmark_name": "quick_comparison",
+  "runner_type": "clove",
+  "start_time": "2026-01-22T05:50:05.204403",
+  "end_time": "2026-01-22T05:50:09.755005",
+  "statistics": {
+    "agent_spawn_quick": {
+      "count": 5,
+      "success_count": 5,
+      "failure_count": 0,
+      "min_ms": 0.0014699980965815485,
+      "max_ms": 0.0027140013116877526,
+      "mean_ms": 0.0019811996025964618,
+      "median_ms": 0.0017610000213608146,
+      "stddev_ms": 0.0005170244899059783,
+      "p95_ms": 0.002634000702528283,
+      "p99_ms": 0.0026980011898558587,
+      "throughput_per_sec": 504744.70047815965
+    },
+    "llm_call_quick": {
+      "count": 3,
+      "success_count": 3,
+      "failure_count": 0,
+      "min_ms": 123.31226999958744,
+      "max_ms": 1622.919641999033,
+      "mean_ms": 1056.655839666443,
+      "median_ms": 1423.7356070007081,
+      "stddev_ms": 814.4115877296962,
+      "p95_ms": 1603.0012384992006,
+      "p99_ms": 1618.9359612990665,
+      "throughput_per_sec": 0.9463819367294393
+    },
+    "tool_call_quick": {
+      "count": 5,
+      "success_count": 5,
+      "failure_count": 0,
+      "min_ms": 0.03863999882014468,
+      "max_ms": 0.04402300328365527,
+      "mean_ms": 0.040440800512442365,
+      "median_ms": 0.04016000093542971,
+      "stddev_ms": 0.00217946839975976,
+      "p95_ms": 0.04334200275479816,
+      "p99_ms": 0.04388680317788385,
+      "throughput_per_sec": 24727.50260451277
+    }
+  },
+  "task_results": {
+    "agent_spawn_quick": [
+      {
+        "iteration": 0,
+        "duration_ms": 0.0027140013116877526,
+        "success": true,
+        "error": null,
+        "extra": {
+          "success": false,
+          "error": "CloveClient.spawn() got an unexpected keyword argument 'sandbox'"
+        }
+      },
+      {
+        "iteration": 1,
+        "duration_ms": 0.0023139982658904046,
+        "success": true,
+        "error": null,
+        "extra": {
+          "success": false,
+          "error": "CloveClient.spawn() got an unexpected keyword argument 'sandbox'"
+        }
+      },
+      {
+        "iteration": 2,
+        "duration_ms": 0.0017610000213608146,
+        "success": true,
+        "error": null,
+        "extra": {
+          "success": false,
+          "error": "CloveClient.spawn() got an unexpected keyword argument 'sandbox'"
+        }
+      },
+      {
+        "iteration": 3,
+        "duration_ms": 0.0016470003174617887,
+        "success": true,
+        "error": null,
+        "extra": {
+          "success": false,
+          "error": "CloveClient.spawn() got an unexpected keyword argument 'sandbox'"
+        }
+      },
+      {
+        "iteration": 4,
+        "duration_ms": 0.0014699980965815485,
+        "success": true,
+        "error": null,
+        "extra": {
+          "success": false,
+          "error": "CloveClient.spawn() got an unexpected keyword argument 'sandbox'"
+        }
+      }
+    ],
+    "llm_call_quick": [
+      {
+        "iteration": 0,
+        "duration_ms": 1622.919641999033,
+        "success": true,
+        "error": null,
+        "extra": {
+          "success": true,
+          "tokens": 43
+        }
+      },
+      {
+        "iteration": 1,
+        "duration_ms": 1423.7356070007081,
+        "success": true,
+        "error": null,
+        "extra": {
+          "success": true,
+          "tokens": 43
+        }
+      },
+      {
+        "iteration": 2,
+        "duration_ms": 123.31226999958744,
+        "success": true,
+        "error": null,
+        "extra": {
+          "success": false,
+          "tokens": 0
+        }
+      }
+    ],
+    "tool_call_quick": [
+      {
+        "iteration": 0,
+        "duration_ms": 0.04402300328365527,
+        "success": true,
+        "error": null,
+        "extra": {
+          "success": true,
+          "result": "test"
+        }
+      },
+      {
+        "iteration": 1,
+        "duration_ms": 0.04016000093542971,
+        "success": true,
+        "error": null,
+        "extra": {
+          "success": true,
+          "result": "test"
+        }
+      },
+      {
+        "iteration": 2,
+        "duration_ms": 0.04061800063936971,
+        "success": true,
+        "error": null,
+        "extra": {
+          "success": true,
+          "result": "test"
+        }
+      },
+      {
+        "iteration": 3,
+        "duration_ms": 0.03863999882014468,
+        "success": true,
+        "error": null,
+        "extra": {
+          "success": true,
+          "result": "test"
+        }
+      },
+      {
+        "iteration": 4,
+        "duration_ms": 0.038762998883612454,
+        "success": true,
+        "error": null,
+        "extra": {
+          "success": true,
+          "result": "test"
+        }
+      }
+    ]
+  },
+  "system_snapshots": []
+}

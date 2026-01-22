@@ -6,16 +6,41 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+include(FetchContent)
+
 # Find vcpkg toolchain
 if(DEFINED ENV{VCPKG_ROOT} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
     set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
         CACHE STRING "")
 endif()
 
-# Dependencies
-find_package(fmt CONFIG REQUIRED)
-find_package(spdlog CONFIG REQUIRED)
-find_package(nlohmann_json CONFIG REQUIRED)
+# Dependencies - try to find system packages first, fetch if not found
+find_package(fmt QUIET)
+if(NOT fmt_FOUND)
+    FetchContent_Declare(fmt
+        GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+        GIT_TAG 10.2.1
+    )
+    FetchContent_MakeAvailable(fmt)
+endif()
+
+find_package(spdlog QUIET)
+if(NOT spdlog_FOUND)
+    FetchContent_Declare(spdlog
+        GIT_REPOSITORY https://github.com/gabime/spdlog.git
+        GIT_TAG v1.13.0
+    )
+    FetchContent_MakeAvailable(spdlog)
+endif()
+
+find_package(nlohmann_json QUIET)
+if(NOT nlohmann_json_FOUND)
+    FetchContent_Declare(json
+        GIT_REPOSITORY https://github.com/nlohmann/json.git
+        GIT_TAG v3.11.3
+    )
+    FetchContent_MakeAvailable(json)
+endif()
 # OpenSSL for potential future HTTPS syscalls
 find_package(OpenSSL REQUIRED)
 
@@ -33,6 +58,7 @@ add_executable(clove_kernel
     src/kernel/virtual_fs.cpp
     src/kernel/world_engine.cpp
     src/kernel/tunnel_client.cpp
+    src/kernel/metrics/metrics.cpp
     src/ipc/socket_server.cpp
     src/runtime/sandbox.cpp
     src/runtime/agent_process.cpp

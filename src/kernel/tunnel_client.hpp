@@ -1,5 +1,5 @@
 /**
- * AgentOS Tunnel Client
+ * Clove Tunnel Client
  *
  * Manages connection to a relay server for remote agent connectivity.
  * Runs a Python subprocess (tunnel_client.py) and communicates via JSON.
@@ -16,7 +16,7 @@
 #include <condition_variable>
 #include <nlohmann/json.hpp>
 
-namespace agentos::kernel {
+namespace clove::kernel {
 
 // Configuration for tunnel connection
 struct TunnelConfig {
@@ -143,4 +143,4 @@ private:
     void handle_response(const nlohmann::json& response);
 };
 
-} // namespace agentos::kernel
+} // namespace clove::kernel
