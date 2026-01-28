@@ -53,18 +53,42 @@ add_executable(clove_kernel
     src/main.cpp
     src/kernel/kernel.cpp
     src/kernel/reactor.cpp
-    src/kernel/llm_client.cpp
     src/kernel/permissions.cpp
-    src/kernel/virtual_fs.cpp
-    src/kernel/world_engine.cpp
-    src/kernel/tunnel_client.cpp
-    src/kernel/metrics/metrics.cpp
     src/kernel/audit_log.cpp
     src/kernel/execution_log.cpp
-    src/ipc/socket_server.cpp
-    src/runtime/sandbox.cpp
-    src/runtime/agent_process.cpp
-    src/util/logger.cpp
+    src/kernel/syscall_router.cpp
+    src/kernel/event_bus.cpp
+    src/kernel/state_store.cpp
+    src/kernel/ipc_mailbox.cpp
+    src/kernel/permissions_store.cpp
+    src/kernel/async_task_manager.cpp
+    src/kernel/syscalls/async.cpp
+    src/kernel/syscalls/agents.cpp
+    src/kernel/syscalls/audit.cpp
+    src/kernel/syscalls/events.cpp
+    src/kernel/syscalls/exec.cpp
+    src/kernel/syscalls/fs.cpp
+    src/kernel/syscalls/ipc.cpp
+    src/kernel/syscalls/llm.cpp
+    src/kernel/syscalls/metrics.cpp
+    src/kernel/syscalls/network.cpp
+    src/kernel/syscalls/permissions.cpp
+    src/kernel/syscalls/replay.cpp
+    src/kernel/syscalls/state.cpp
+    src/kernel/syscalls/tunnel.cpp
+    src/kernel/syscalls/worlds.cpp
+    src/ipc/transport/socket_server.cpp
+    src/runtime/sandbox/sandbox.cpp
+    src/runtime/agent/process.cpp
+    src/runtime/agent/manager.cpp
+    src/runtime/agent/types.cpp
+    src/services/tunnel/client.cpp
+    src/metrics/metrics.cpp
+    src/worlds/virtual_fs.cpp
+    src/worlds/world_engine.cpp
+    src/core/logger.cpp
+    src/core/config.cpp
+    src/core/paths.cpp
 )
 
 target_include_directories(clove_kernel PRIVATE

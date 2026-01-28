@@ -1,5 +1,7 @@
 # Clove Syscall Reference
 
+Note: LLM calls are handled by the SDK via `agents/llm_service`. The kernel no longer processes `SYS_THINK`; it returns an error stub.
+
 ## Wire Protocol
 
 ```
@@ -29,13 +31,13 @@
 
 | Op | Name | Payload | Response |
 |----|------|---------|----------|
-| `0x01` | THINK | `{"prompt", "image?", "system_instruction?", "thinking_level?", "temperature?", "model?"}` | `{"success", "content", "tokens", "error"}` |
+| `0x01` | THINK | `{"prompt", "image?", "system_instruction?", "thinking_level?", "temperature?", "model?"}` | Error stub (kernel-disabled) |
 
 ### Filesystem
 
 | Op | Name | Payload | Response |
 |----|------|---------|----------|
-| `0x02` | EXEC | `{"command", "cwd?", "timeout?"}` | `{"success", "stdout", "stderr", "exit_code"}` |
+| `0x02` | EXEC | `{"command", "cwd?", "timeout?", "async?", "request_id?"}` | `{"success", "stdout", "stderr", "exit_code"}` or `{"success", "async", "request_id", "status"}` |
 | `0x03` | READ | `{"path"}` | `{"success", "content", "size"}` |
 | `0x04` | WRITE | `{"path", "content", "mode?"}` | `{"success", "bytes_written"}` |
 
@@ -87,7 +89,7 @@
 
 | Op | Name | Payload | Response |
 |----|------|---------|----------|
-| `0x50` | HTTP | `{"url", "method?", "headers?", "body?", "timeout?"}` | `{"success", "status_code", "body"}` |
+| `0x50` | HTTP | `{"url", "method?", "headers?", "body?", "timeout?", "async?", "request_id?"}` | `{"success", "status_code", "body"}` or `{"success", "async", "request_id", "status"}` |
 
 ### Events (Pub/Sub)
 
@@ -199,6 +201,17 @@
   "details": {...}
 }
 ```
+
+### Async Results
+
+| Op | Name | Payload | Response |
+|----|------|---------|----------|
+| `0x80` | ASYNC_POLL | `{"max?"}` | `{"success", "results": [{"request_id", "opcode", "opcode_name", "payload"}], "count"}` |
+
+**Async flow (EXEC/HTTP/THINK):**
+1) Send syscall with `"async": true` (and optional `"request_id"`).
+2) Kernel returns `{"success": true, "async": true, "request_id", "status": "accepted"}`.
+3) Poll results with `ASYNC_POLL`. Each result’s `payload` is the JSON string of the normal sync response.
 
 ### Execution Recording & Replay
 

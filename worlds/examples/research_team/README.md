@@ -5,6 +5,8 @@ A multi-agent research team implemented in three ways:
 2. **Clove** - Single process, kernel-mediated
 3. **Clove Multi-Process** - Real process isolation with IPC
 
+Note: LLM calls are handled by the SDK via `agents/llm_service`; the kernel does not execute LLM calls.
+
 ## The System
 
 Three agents collaborate to research a topic and produce a report:
@@ -82,9 +84,9 @@ result = graph.invoke(initial_state)
 
 ### Clove (Single Process)
 ```python
-# Direct kernel LLM calls - minimal overhead
+# SDK-local LLM calls
 with CloveClient() as client:
-    decision = client.think(coordinator_prompt)  # Kernel handles LLM
+    decision = client.think(coordinator_prompt)
     notes = client.think(researcher_prompt)
     report = client.think(writer_prompt)
 ```

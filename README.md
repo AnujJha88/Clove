@@ -13,7 +13,6 @@ A microkernel runtime for AI agents. Like Postgres for databases — Clove is th
 │  • Process isolation            │
 │  • cgroups resource limits      │
 │  • Linux namespace sandboxing   │
-│  • LLM access (Gemini)         │
 │  • Inter-agent IPC             │
 └─────────────────────────────────┘
 ```
@@ -24,13 +23,12 @@ A microkernel runtime for AI agents. Like Postgres for databases — Clove is th
 
 **Docker** (recommended):
 ```bash
-docker run -d --privileged -e GEMINI_API_KEY=xxx ghcr.io/anixd/clove
+docker run -d --privileged ghcr.io/anixd/clove
 ```
 
 **Local binary:**
 ```bash
 curl -fsSL https://raw.githubusercontent.com/anixd/clove/main/install.sh | bash
-export GEMINI_API_KEY=xxx
 clove_kernel
 ```
 
@@ -38,7 +36,7 @@ clove_kernel
 ```bash
 git clone https://github.com/anixd/clove.git && cd clove
 mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release && make -j$(nproc)
-GEMINI_API_KEY=xxx ./clove_kernel
+./clove_kernel
 ```
 
 ---
@@ -48,6 +46,8 @@ GEMINI_API_KEY=xxx ./clove_kernel
 ```bash
 pip install clove-sdk
 ```
+
+LLM calls are handled by the SDK via the local `agents/llm_service` wrapper (set `GEMINI_API_KEY` in your environment).
 
 ---
 
@@ -91,7 +91,7 @@ Clove runs agents as **real OS processes** with:
 | Agent infinite loops | System hangs | Agent throttled |
 | Memory leak | OOM kills all | Only that agent killed |
 | Malicious code | Full access | Sandboxed |
-| 10 agents need LLM | Race conditions | Fair queuing |
+| 10 agents need LLM | Race conditions | External proxy/SDK can enforce fairness |
 | Agent crash | Corrupts shared state | Clean isolation |
 
 ---
@@ -102,8 +102,8 @@ Clove runs agents as **real OS processes** with:
 ┌─────────────────────────────────────────────────────────────────┐
 │                    Clove Kernel (C++23)                          │
 │  ┌─────────────┐  ┌─────────────────┐  ┌─────────────────────┐ │
-│  │   Reactor   │  │   LLM Client    │  │   Agent Manager     │ │
-│  │   (epoll)   │  │ (subprocess)    │  │   (Sandbox/Fork)    │ │
+│  │   Reactor   │  │   Event Bus     │  │   Agent Manager     │ │
+│  │   (epoll)   │  │                 │  │   (Sandbox/Fork)    │ │
 │  └──────┬──────┘  └────────┬────────┘  └──────────┬──────────┘ │
 │         └──────────────────┼───────────────────────┘            │
 │                            │                                    │

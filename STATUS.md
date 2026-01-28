@@ -2,6 +2,8 @@
 
 **Last Updated:** 2026-01-26
 
+Note: LLM calls are now handled by the SDK via `agents/llm_service`; kernel-level LLM references below are historical.
+
 ---
 
 ## Recent: Metrics System **COMPLETE**

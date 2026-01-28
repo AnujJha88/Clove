@@ -3,7 +3,7 @@
 #include <unordered_map>
 #include <cstdint>
 
-namespace agentos::kernel {
+namespace clove::kernel {
 
 // Event types
 enum class EventType : uint32_t {
@@ -65,4 +65,4 @@ inline uint32_t operator|(uint32_t a, EventType b) {
     return a | static_cast<uint32_t>(b);
 }
 
-} // namespace agentos::kernel
+} // namespace clove::kernel

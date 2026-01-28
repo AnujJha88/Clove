@@ -2,6 +2,8 @@
 
 When an agent crashes, Clove automatically restarts it with exponential backoff.
 
+Note: LLM calls are handled by the SDK via `agents/llm_service`; the kernel no longer processes `SYS_THINK`.
+
 ## Overview
 
 ```

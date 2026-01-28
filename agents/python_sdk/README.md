@@ -1,6 +1,6 @@
 # Clove Python SDK
 
-Python client library for communicating with the Clove kernel.
+Python client library for communicating with the Clove kernel. LLM calls are handled locally via `agents/llm_service` (set `GEMINI_API_KEY`).
 
 ## Installation
 
@@ -8,8 +8,8 @@ Python client library for communicating with the Clove kernel.
 # SDK is included in the repo, just add to path
 export PYTHONPATH="/path/to/Clove/agents/python_sdk:$PYTHONPATH"
 
-# Or copy to your project
-cp agents/python_sdk/agentos.py your_project/
+# Or install as an editable package
+pip install -e agents/python_sdk
 ```
 
 ## Quick Start
@@ -31,10 +31,11 @@ with CloveClient() as client:
 
 | File | Description |
 |------|-------------|
-| `agentos.py` | Core SDK - `CloveClient` class with all syscalls |
-| `agentic.py` | Agentic loop framework - autonomous task execution |
-| `fleet_client.py` | Fleet management - deploy agents to remote machines |
-| `remote_client.py` | Remote agent SDK - run agents via relay server |
+| `clove_sdk/client.py` | Core SDK - `CloveClient` class with syscalls |
+| `clove_sdk/llm_service.py` | Local LLM wrapper around `agents/llm_service` |
+| `clove_sdk/agentic.py` | Agentic loop framework - autonomous task execution |
+| `clove_sdk/fleet.py` | Fleet management - deploy agents to remote machines |
+| `clove_sdk/remote.py` | Remote agent SDK - run agents via relay server |
 
 ## CloveClient API
 

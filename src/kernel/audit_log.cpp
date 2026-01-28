@@ -3,7 +3,7 @@
 #include <iomanip>
 #include <sstream>
 
-namespace agentos::kernel {
+namespace clove::kernel {
 
 using json = nlohmann::json;
 
@@ -216,4 +216,4 @@ void AuditLogger::trim_entries() {
     }
 }
 
-} // namespace agentos::kernel
+} // namespace clove::kernel

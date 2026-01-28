@@ -80,6 +80,8 @@ class SyscallOp(IntEnum):
     SYS_RECORD_STATUS = 0x72       # Get recording status
     SYS_REPLAY_START = 0x73        # Start replay
     SYS_REPLAY_STATUS = 0x74       # Get replay status
+    # Async Results
+    SYS_ASYNC_POLL = 0x80          # Poll async syscall results
     SYS_EXIT = 0xFF   # Graceful shutdown
 
 
@@ -237,10 +239,12 @@ class CloveClient:
               system_instruction: str = None,
               thinking_level: str = None,
               temperature: float = None,
-              model: str = None) -> dict:
-        """Send a prompt to the LLM via Gemini API."""
-        import json
+              model: str = None,
+              async_: bool = False,
+              request_id: int = None) -> dict:
+        """Send a prompt to the LLM via local LLM service (not the kernel)."""
         import base64
+        from .llm_service import call_llm_service
 
         payload = {"prompt": prompt}
 
@@ -261,14 +265,10 @@ class CloveClient:
 
         if model:
             payload["model"] = model
+        if async_ or request_id is not None:
+            payload["async"] = False
 
-        response = self.call(SyscallOp.SYS_THINK, json.dumps(payload))
-        if response:
-            try:
-                return json.loads(response.payload_str)
-            except json.JSONDecodeError:
-                return {"success": True, "content": response.payload_str, "error": None}
-        return {"success": False, "content": "", "error": "No response from kernel"}
+        return call_llm_service(payload)
 
     def exit(self) -> bool:
         """Request graceful exit"""
@@ -358,7 +358,8 @@ class CloveClient:
             return json.loads(response.payload_str)
         return []
 
-    def exec(self, command: str, cwd: str = None, timeout: int = 30) -> dict:
+    def exec(self, command: str, cwd: str = None, timeout: int = 30,
+             async_: bool = False, request_id: int = None) -> dict:
         """Execute a shell command."""
         import json
         payload = {
@@ -367,6 +368,10 @@ class CloveClient:
         }
         if cwd:
             payload["cwd"] = cwd
+        if async_:
+            payload["async"] = True
+        if request_id is not None:
+            payload["request_id"] = request_id
 
         response = self.call(SyscallOp.SYS_EXEC, json.dumps(payload))
         if response:
@@ -565,7 +570,8 @@ class CloveClient:
     # HTTP
 
     def http(self, url: str, method: str = "GET", headers: dict = None,
-             body: str = None, timeout: int = 30) -> dict:
+             body: str = None, timeout: int = 30,
+             async_: bool = False, request_id: int = None) -> dict:
         """Make an HTTP request."""
         import json
         payload = {
@@ -578,6 +584,10 @@ class CloveClient:
             payload["headers"] = headers
         if body:
             payload["body"] = body
+        if async_:
+            payload["async"] = True
+        if request_id is not None:
+            payload["request_id"] = request_id
 
         response = self.call(SyscallOp.SYS_HTTP, json.dumps(payload))
         if response:
@@ -627,6 +637,21 @@ class CloveClient:
             except json.JSONDecodeError:
                 return {"success": False, "events": [], "count": 0, "error": response.payload_str}
         return {"success": False, "events": [], "count": 0, "error": "No response from kernel"}
+
+    # Async Results
+
+    def poll_async(self, max_results: int = 10) -> dict:
+        """Poll for completed async syscall results."""
+        import json
+        payload = {"max": max_results}
+
+        response = self.call(SyscallOp.SYS_ASYNC_POLL, json.dumps(payload))
+        if response:
+            try:
+                return json.loads(response.payload_str)
+            except json.JSONDecodeError:
+                return {"success": False, "results": [], "count": 0, "error": response.payload_str}
+        return {"success": False, "results": [], "count": 0, "error": "No response from kernel"}
 
     def emit_event(self, event_type: str, data: dict = None) -> dict:
         """Emit a custom event to all subscribers."""

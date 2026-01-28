@@ -7,7 +7,7 @@
 
 namespace fs = std::filesystem;
 
-namespace agentos::kernel {
+namespace clove::kernel {
 
 // ============================================================================
 // AgentPermissions Implementation
@@ -392,4 +392,4 @@ bool PermissionChecker::domain_matches(const std::string& domain, const std::str
     return false;
 }
 
-} // namespace agentos::kernel
+} // namespace clove::kernel

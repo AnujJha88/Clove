@@ -1,5 +1,7 @@
 # Getting Started with Clove
 
+Note: LLM calls are handled by the SDK via `agents/llm_service`. Set `GEMINI_API_KEY` in your environment for SDK calls.
+
 ## Prerequisites
 
 - Linux (Ubuntu 22.04+ / Debian 12+)
@@ -18,9 +20,8 @@ cd clove
 # Run install script
 ./scripts/install.sh
 
-# Set up API key
-cp .env.example .env
-# Edit .env and add GEMINI_API_KEY
+# (Optional) For SDK LLM calls
+# export GEMINI_API_KEY=...
 ```
 
 ## Manual Install
@@ -271,7 +272,7 @@ python3 benchmark.py --iterations 3
 
 This benchmark runs a 3-agent research team (Coordinator, Researcher, Writer) in three configurations:
 - **LangGraph**: StateGraph pattern, single process
-- **Clove Single-Process**: Kernel-mediated LLM calls
+- **Clove Single-Process**: SDK-local LLM calls
 - **Clove Multi-Process**: Real process isolation with IPC messaging
 
 See [worlds/examples/research_team/README.md](../worlds/examples/research_team/README.md) for details.

@@ -11,7 +11,7 @@
 #include <regex>
 #include <nlohmann/json.hpp>
 
-namespace agentos::kernel {
+namespace clove::kernel {
 
 // Permission levels (presets)
 enum class PermissionLevel {
@@ -133,4 +133,4 @@ const std::vector<std::string> DEFAULT_BLOCKED_COMMANDS = {
     "poweroff"
 };
 
-} // namespace agentos::kernel
+} // namespace clove::kernel

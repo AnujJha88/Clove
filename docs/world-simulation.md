@@ -2,6 +2,8 @@
 
 Clove's sandbox primitives can create **controlled virtual worlds** for agent testing. Worlds provide filesystem virtualization, network mocking, and chaos event injection.
 
+Note: LLM calls are handled by the SDK via `agents/llm_service`; the kernel no longer processes `SYS_THINK`.
+
 ## Overview
 
 ```

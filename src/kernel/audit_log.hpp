@@ -15,7 +15,7 @@
 #include <cstdint>
 #include <nlohmann/json.hpp>
 
-namespace agentos::kernel {
+namespace clove::kernel {
 
 // Audit event categories
 enum class AuditCategory {
@@ -152,4 +152,4 @@ private:
     void trim_entries();
 };
 
-} // namespace agentos::kernel
+} // namespace clove::kernel

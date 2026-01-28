@@ -231,6 +231,7 @@ class RemoteAgentClient:
               thinking_level: str = None,
               temperature: float = None,
               model: str = None) -> dict:
+        from .llm_service import call_llm_service
         payload = {"prompt": prompt}
         if image:
             payload["image"] = {"data": base64.b64encode(image).decode(), "mime_type": image_mime_type}
@@ -242,14 +243,7 @@ class RemoteAgentClient:
             payload["temperature"] = temperature
         if model:
             payload["model"] = model
-
-        response = self.call(SyscallOp.SYS_THINK, json.dumps(payload))
-        if response:
-            try:
-                return json.loads(response.payload_str)
-            except json.JSONDecodeError:
-                return {"success": True, "content": response.payload_str}
-        return {"success": False, "content": "", "error": "No response"}
+        return call_llm_service(payload)
 
     def exec(self, command: str, cwd: str = None, timeout: int = 30) -> dict:
         payload = {"command": command, "timeout": timeout}

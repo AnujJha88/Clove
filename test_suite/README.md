@@ -42,7 +42,6 @@ python test_suite/12_pause_resume.py
 |------|------|-------------|-----------------|
 | 01 | `01_connection.py` | Basic kernel connection | NOOP |
 | 02 | `02_file_operations.py` | File read/write | READ, WRITE |
-| 03 | `03_llm_query.py` | LLM integration | THINK |
 | 04 | `04_ipc.py` | Inter-agent messaging | SEND, RECV, BROADCAST, REGISTER |
 | 05 | `05_shell_exec.py` | Shell command execution | EXEC |
 | 06 | `06_agent_management.py` | Agent lifecycle | SPAWN, KILL, LIST |
@@ -54,6 +53,7 @@ python test_suite/12_pause_resume.py
 | 12 | `12_pause_resume.py` | Agent pause/resume | PAUSE, RESUME |
 | 13 | `13_audit_logging.py` | Audit log system | GET_AUDIT_LOG, SET_AUDIT_CONFIG |
 | 14 | `14_execution_replay.py` | Execution recording | RECORD_START, RECORD_STOP, RECORD_STATUS, REPLAY_START, REPLAY_STATUS |
+| 15 | `15_async.py` | Async syscalls | EXEC (async), ASYNC_POLL |
 
 ## Test Details
 
@@ -66,11 +66,6 @@ python test_suite/12_pause_resume.py
 - Tests READ syscall for file reading
 - Tests WRITE syscall for file creation/modification
 - Verifies file contents
-
-### 03 - LLM Query
-- Sends prompt to LLM via THINK syscall
-- Tests with optional parameters (system_instruction, temperature)
-- Verifies response structure
 
 ### 04 - Inter-Process Communication
 - Tests agent name registration
@@ -142,6 +137,10 @@ python test_suite/12_pause_resume.py
 - Tests REPLAY_START to begin replay
 - Tests REPLAY_STATUS to check progress
 
+### 15 - Async Syscalls
+- Submits an async EXEC syscall
+- Polls with ASYNC_POLL until result is available
+
 ## Expected Output
 
 Successful run:
@@ -152,7 +151,6 @@ Successful run:
 
   ✅ PASS - Basic Connection
   ✅ PASS - File Operations
-  ✅ PASS - LLM Query
   ✅ PASS - Inter-Process Communication
   ✅ PASS - Shell Execution
   ✅ PASS - Agent Management
@@ -164,6 +162,7 @@ Successful run:
   ✅ PASS - Pause/Resume
   ✅ PASS - Audit Logging
   ✅ PASS - Execution Recording & Replay
+  ✅ PASS - Async Syscalls
 
 ============================================================
   Results: 14 passed, 0 failed, 0 skipped

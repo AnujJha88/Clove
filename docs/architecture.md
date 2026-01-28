@@ -4,14 +4,16 @@
 
 Clove is a microkernel for AI agents. It provides OS-level isolation, resource control, and fair scheduling for autonomous agents. The system supports both local execution and cloud deployment through a relay server architecture.
 
+Note: LLM calls are handled by the SDK via the local `agents/llm_service` wrapper. The kernel no longer hosts an LLM client, and `SYS_THINK` is a stub.
+
 ## Local Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                    Clove Kernel (C++23)                        │
 │  ┌─────────────┐  ┌─────────────────┐  ┌─────────────────────┐  │
-│  │   Reactor   │  │   LLM Client    │  │   Agent Manager     │  │
-│  │   (epoll)   │  │ (subprocess)    │  │   (Sandbox/Fork)    │  │
+│  │   Reactor   │  │   Event Bus     │  │   Agent Manager     │  │
+│  │   (epoll)   │  │                 │  │   (Sandbox/Fork)    │  │
 │  └──────┬──────┘  └────────┬────────┘  └──────────┬──────────┘  │
 │         │                  │                       │             │
 │         └──────────────────┼───────────────────────┘             │
@@ -92,10 +94,10 @@ Clove is a microkernel for AI agents. It provides OS-level isolation, resource c
 
 ### LLM Service (`agents/llm_service/`)
 
-Python subprocess that handles Gemini API calls. Kernel communicates via stdin/stdout JSON.
+Python subprocess that handles Gemini API calls. The SDK communicates via stdin/stdout JSON.
 
 ```
-Kernel (C++) ──JSON──► llm_service.py ──HTTPS──► Gemini API
+SDK (Python) ──JSON──► llm_service.py ──HTTPS──► Gemini API
 ```
 
 ## Data Flow

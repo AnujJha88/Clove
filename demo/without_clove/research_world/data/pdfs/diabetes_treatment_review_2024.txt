@@ -1,0 +1,88 @@
+
+# Comprehensive Review: Type 2 Diabetes Treatment Landscape 2024
+
+## Executive Summary
+
+Type 2 diabetes mellitus (T2DM) affects approximately 537 million adults globally,
+with prevalence expected to rise to 783 million by 2045. This review examines
+current treatment approaches, emerging therapies, and evidence-based recommendations.
+
+## First-Line Therapy: Metformin
+
+Metformin remains the cornerstone of T2DM management:
+- Mechanism: Reduces hepatic glucose production via AMPK activation
+- Efficacy: HbA1c reduction of 1.0-1.5%
+- Benefits: Weight neutral, cardiovascular protection, low cost
+- Limitations: GI side effects, contraindicated in severe renal impairment
+
+## Second-Line Options
+
+### SGLT2 Inhibitors (Empagliflozin, Dapagliflozin, Canagliflozin)
+- Mechanism: Block renal glucose reabsorption
+- HbA1c reduction: 0.5-1.0%
+- Additional benefits:
+  * Cardiovascular risk reduction (EMPA-REG: 38% CV death reduction)
+  * Heart failure hospitalization reduction (35%)
+  * Renal protection (CREDENCE trial)
+- Weight loss: 2-3 kg average
+- Risks: Genital infections, DKA (rare)
+
+### GLP-1 Receptor Agonists (Semaglutide, Liraglutide, Dulaglutide)
+- Mechanism: Enhance glucose-dependent insulin secretion
+- HbA1c reduction: 1.0-1.8%
+- Weight loss: Up to 15% with semaglutide 2.4mg
+- Cardiovascular benefits: LEADER showed 13% MACE reduction
+- Side effects: Nausea, vomiting (usually transient)
+
+### DPP-4 Inhibitors (Sitagliptin, Linagliptin)
+- Mechanism: Prevent incretin degradation
+- HbA1c reduction: 0.5-0.8%
+- Weight neutral
+- Well tolerated but modest efficacy
+
+## Emerging Therapies
+
+### Tirzepatide (Dual GIP/GLP-1 Agonist)
+- SURPASS trials: Up to 2.4% HbA1c reduction
+- Weight loss: Up to 22.5%
+- Approved for T2DM, obesity indication pending
+
+### Oral Semaglutide
+- First oral GLP-1 agonist
+- Similar efficacy to injectable formulation
+- Requires specific administration protocol
+
+## Treatment Algorithm
+
+1. Lifestyle modification + Metformin (first-line)
+2. Add SGLT2i or GLP-1 RA based on:
+   - Cardiovascular disease: Prefer agents with proven CV benefit
+   - Heart failure: SGLT2 inhibitor preferred
+   - CKD: SGLT2 inhibitor or GLP-1 RA with renal benefit
+   - Obesity: GLP-1 RA preferred
+3. Consider combination therapy for HbA1c >9%
+4. Insulin when other agents insufficient
+
+## Key Clinical Trials Summary
+
+| Trial | Drug | Primary Outcome | Result |
+|-------|------|-----------------|--------|
+| EMPA-REG | Empagliflozin | CV death, MI, stroke | 14% reduction |
+| LEADER | Liraglutide | MACE | 13% reduction |
+| SUSTAIN-6 | Semaglutide | MACE | 26% reduction |
+| CREDENCE | Canagliflozin | Renal composite | 30% reduction |
+| SURPASS-2 | Tirzepatide | HbA1c | Superior to semaglutide |
+
+## Conclusions
+
+Modern T2DM management has evolved beyond glucose control to include
+cardiovascular and renal protection. Individualized therapy selection
+based on comorbidities, patient preferences, and treatment goals is essential.
+
+## References
+
+1. American Diabetes Association. Standards of Care 2024
+2. Davies MJ, et al. Diabetes Care 2022
+3. Zinman B, et al. EMPA-REG OUTCOME. N Engl J Med 2015
+4. Marso SP, et al. LEADER. N Engl J Med 2016
+5. Perkovic V, et al. CREDENCE. N Engl J Med 2019

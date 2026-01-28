@@ -1,0 +1,105 @@
+
+# GLP-1 Receptor Agonists: The Weight Loss Revolution
+
+## Overview
+
+GLP-1 receptor agonists have transformed obesity treatment, with semaglutide
+achieving unprecedented weight loss in clinical trials.
+
+## Mechanism of Weight Loss
+
+### Central Effects
+- Hypothalamic appetite suppression
+- Reduced food reward signaling
+- Increased satiety
+- Delayed gastric emptying
+
+### Peripheral Effects
+- Improved insulin sensitivity
+- Reduced hepatic lipogenesis
+- Possible increased energy expenditure
+
+## Clinical Evidence for Weight Loss
+
+### STEP Trials (Semaglutide 2.4mg for Obesity)
+
+**STEP 1 (N=1,961)**
+- Population: Obesity without diabetes
+- Result: 14.9% weight loss vs 2.4% placebo
+- 86% achieved ≥5% weight loss
+- 32% achieved ≥20% weight loss
+
+**STEP 2 (N=1,210)**
+- Population: Obesity with T2DM
+- Result: 9.6% weight loss vs 3.4% placebo
+- HbA1c reduction: 1.6%
+
+**STEP 3 (N=611)**
+- Population: Obesity + intensive behavioral therapy
+- Result: 16.0% weight loss vs 5.7% placebo
+
+**STEP 4 (N=902)**
+- Design: Withdrawal study
+- Result: Continued treatment maintained loss
+- Weight regain of ~7% after stopping
+
+### SURMOUNT Trials (Tirzepatide for Obesity)
+
+**SURMOUNT-1 (N=2,539)**
+- Population: Obesity without diabetes
+- Results by dose:
+  * 5mg: 15.0% weight loss
+  * 10mg: 19.5% weight loss
+  * 15mg: 20.9% weight loss
+- 57% achieved ≥20% weight loss at highest dose
+
+### Head-to-Head Comparison
+
+**SURPASS-2**
+- Tirzepatide vs Semaglutide 1mg in T2DM
+- Weight loss: Tirzepatide superior at all doses
+- HbA1c: Tirzepatide superior
+
+## Cardiovascular Outcomes
+
+### SELECT Trial (2023)
+- Semaglutide 2.4mg in obesity WITHOUT diabetes
+- N = 17,604 with overweight/obesity and CVD
+- Primary outcome: 20% MACE reduction
+- Paradigm shift: CV benefit independent of diabetes
+
+## Practical Considerations
+
+### Dosing
+- Start low, titrate slowly to minimize GI effects
+- Semaglutide: 0.25mg weekly → 2.4mg over 16-20 weeks
+- Tirzepatide: 2.5mg weekly → 15mg over 20 weeks
+
+### Patient Selection
+- BMI ≥30, or ≥27 with comorbidity
+- Motivated for lifestyle changes
+- No contraindications (MTC history, MEN2)
+
+### Managing Side Effects
+- Nausea: Most common, usually transient
+- Advise smaller meals, avoid high-fat foods
+- Slow titration if persistent
+
+### Duration of Therapy
+- Weight regain after discontinuation
+- Likely long-term/indefinite treatment needed
+- Insurance coverage remains barrier
+
+## Future Directions
+
+1. Oral formulations (oral semaglutide available)
+2. Triple agonists (GLP-1/GIP/glucagon)
+3. Combination approaches
+4. Earlier intervention in obesity
+5. Addressing weight maintenance
+
+## Summary
+
+GLP-1 RAs represent a paradigm shift in obesity treatment, achieving
+weight loss approaching bariatric surgery with proven cardiovascular
+benefits. Tirzepatide may offer even greater efficacy.

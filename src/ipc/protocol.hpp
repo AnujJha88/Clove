@@ -13,7 +13,7 @@
 #include <optional>
 #include <stdexcept>
 
-namespace agentos::ipc {
+namespace clove::ipc {
 
 // Magic bytes for protocol validation
 constexpr uint32_t MAGIC_BYTES = 0x41474E54; // "AGNT" in hex
@@ -82,6 +82,8 @@ enum class SyscallOp : uint8_t {
     SYS_RECORD_STATUS  = 0x72,  // Get recording status
     SYS_REPLAY_START   = 0x73,  // Start replay
     SYS_REPLAY_STATUS  = 0x74,  // Get replay status
+    // Async Results
+    SYS_ASYNC_POLL     = 0x80,  // Poll for async syscall results
     SYS_EXIT   = 0xFF   // Graceful shutdown
 };
 
@@ -251,9 +253,10 @@ inline const char* opcode_to_string(SyscallOp op) {
         case SyscallOp::SYS_RECORD_STATUS:  return "RECORD_STATUS";
         case SyscallOp::SYS_REPLAY_START:   return "REPLAY_START";
         case SyscallOp::SYS_REPLAY_STATUS:  return "REPLAY_STATUS";
+        case SyscallOp::SYS_ASYNC_POLL:  return "ASYNC_POLL";
         case SyscallOp::SYS_EXIT:      return "EXIT";
         default: return "UNKNOWN";
     }
 }
 
-} // namespace agentos::ipc
+} // namespace clove::ipc

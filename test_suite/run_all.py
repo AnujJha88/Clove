@@ -15,7 +15,6 @@ from pathlib import Path
 TESTS = [
     ("01_connection.py", "Basic Connection"),
     ("02_file_operations.py", "File Operations"),
-    ("03_llm_query.py", "LLM Query"),
     ("04_ipc.py", "Inter-Process Communication"),
     ("05_shell_exec.py", "Shell Execution"),
     ("06_agent_management.py", "Agent Management"),
@@ -27,6 +26,7 @@ TESTS = [
     ("12_pause_resume.py", "Pause/Resume"),
     ("13_audit_logging.py", "Audit Logging"),
     ("14_execution_replay.py", "Execution Recording & Replay"),
+    ("15_async.py", "Async Syscalls"),
 ]
 
 def run_test(test_file: str, description: str) -> bool:

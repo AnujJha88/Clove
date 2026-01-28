@@ -1,0 +1,111 @@
+
+# SGLT2 Inhibitors: Mechanisms and Clinical Evidence
+
+## Pharmacology
+
+### Mechanism of Action
+SGLT2 (Sodium-Glucose Cotransporter 2) is responsible for ~90% of renal
+glucose reabsorption in the proximal tubule. SGLT2 inhibitors block this
+transporter, causing glucosuria of 70-80g/day.
+
+### Pharmacokinetics
+- Empagliflozin: t1/2 = 12.4h, 86% protein bound
+- Dapagliflozin: t1/2 = 12.9h, 91% protein bound
+- Canagliflozin: t1/2 = 10.6-13.1h, 99% protein bound
+
+## Cardiovascular Mechanisms
+
+Beyond glucose lowering, SGLT2i provide CV benefits through:
+
+1. Hemodynamic Effects
+   - Reduced preload (osmotic diuresis)
+   - Reduced afterload (decreased arterial stiffness)
+   - Blood pressure reduction (3-5 mmHg systolic)
+
+2. Metabolic Effects
+   - Shift from glucose to fatty acid/ketone oxidation
+   - Increased ketone bodies (efficient myocardial fuel)
+   - Reduced lipotoxicity
+
+3. Direct Cardiac Effects
+   - Improved myocardial energetics
+   - Reduced oxidative stress
+   - Anti-inflammatory effects
+
+## Renal Protection Mechanisms
+
+1. Reduced intraglomerular pressure
+   - Restoration of tubuloglomerular feedback
+   - Afferent arteriole vasoconstriction
+
+2. Reduced hyperfiltration
+   - Decreased single-nephron GFR
+   - Protection against progressive nephron loss
+
+3. Metabolic effects
+   - Reduced renal oxygen consumption
+   - Decreased inflammation and fibrosis
+
+## Major Clinical Trials
+
+### EMPA-REG OUTCOME (2015)
+- N = 7,020 with T2DM and established CVD
+- Empagliflozin vs placebo
+- Primary: 14% MACE reduction (HR 0.86)
+- CV death: 38% reduction
+- HF hospitalization: 35% reduction
+
+### CANVAS Program (2017)
+- N = 10,142 with T2DM and high CV risk
+- Canagliflozin vs placebo
+- Primary: 14% MACE reduction (HR 0.86)
+- Signal for increased amputation (addressed)
+
+### DECLARE-TIMI 58 (2019)
+- N = 17,160 with T2DM (broader population)
+- Dapagliflozin vs placebo
+- CV death/HF hospitalization: 17% reduction
+- Established CVD and risk factor subgroups benefited
+
+### DAPA-HF (2019)
+- N = 4,744 with HFrEF (with or without diabetes)
+- Dapagliflozin vs placebo
+- Primary: 26% reduction in CV death/HF worsening
+- Benefit in non-diabetic patients established
+
+### CREDENCE (2019)
+- N = 4,401 with T2DM and CKD
+- Canagliflozin vs placebo
+- Primary renal outcome: 30% reduction
+- Stopped early for efficacy
+
+## Safety Considerations
+
+### Common
+- Genital mycotic infections (5-10%)
+- Urinary tract infections (modest increase)
+- Volume depletion (especially elderly)
+
+### Rare but Serious
+- Diabetic ketoacidosis (euglycemic)
+  * Risk factors: Surgery, fasting, illness
+  * Management: Hold during acute illness
+- Fournier's gangrene (very rare)
+
+### Monitoring
+- Renal function at baseline and periodically
+- Volume status in elderly/diuretic users
+- Ketones if symptomatic during illness
+
+## Clinical Recommendations
+
+1. First-line add-on for T2DM with:
+   - Established ASCVD
+   - Heart failure
+   - CKD (eGFR ≥20-25)
+
+2. Consider regardless of HbA1c in high-risk patients
+
+3. Continue even as eGFR declines (cardiorenal benefit persists)
+
+4. Avoid in Type 1 diabetes, recurrent DKA, severe renal impairment

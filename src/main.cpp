@@ -2,6 +2,7 @@
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <fmt/core.h>
 #include <fmt/color.h>
+#include "core/logger.hpp"
 #include "kernel/kernel.hpp"
 #include <iostream>
 #include <thread>
@@ -42,8 +43,7 @@ void print_banner() {
 )" << term::RESET;
 }
 
-void print_status_box(const std::string& socket_path, bool sandbox_enabled,
-                      const std::string& llm_model) {
+void print_status_box(const std::string& socket_path, bool sandbox_enabled) {
     std::cout << term::WHITE << term::BOLD;
     std::cout << "\n    ┌─────────────────────────────────────────────────────────┐\n";
     std::cout << "    │" << term::RESET << term::CYAN << "  CLOVE STATUS" << term::RESET
@@ -69,12 +69,6 @@ void print_status_box(const std::string& socket_path, bool sandbox_enabled,
     }
     std::cout << term::WHITE << term::BOLD << "│\n";
 
-    // LLM
-    std::cout << "    │" << term::RESET << "  LLM         " << term::MAGENTA << llm_model;
-    padding = 41 - llm_model.length();
-    for (int i = 0; i < padding; i++) std::cout << " ";
-    std::cout << term::WHITE << term::BOLD << "│\n";
-
     std::cout << "    └─────────────────────────────────────────────────────────┘\n" << term::RESET;
 }
 
@@ -84,7 +78,7 @@ void print_startup_sequence() {
         "Initializing reactor",
         "Binding socket server",
         "Loading permissions",
-        "Configuring LLM client",
+        "Configuring tunnels",
         "Starting agent manager"
     };
 
@@ -109,9 +103,8 @@ void print_ready_message(const std::string& socket_path) {
 }
 
 void setup_logging() {
-    auto console = spdlog::stdout_color_mt("console");
-    spdlog::set_default_logger(console);
-    spdlog::set_level(spdlog::level::debug);
+    clove::core::init_logger();
+    clove::core::set_log_level(spdlog::level::debug);
     spdlog::set_pattern("    %^[%l]%$ %v");
 }
 
@@ -120,7 +113,7 @@ int main(int argc, char** argv) {
     print_banner();
 
     // Parse command line args
-    agentos::kernel::Kernel::Config config;
+    clove::kernel::Kernel::Config config;
     if (argc > 1) {
         config.socket_path = argv[1];
     }
@@ -132,7 +125,7 @@ int main(int argc, char** argv) {
     setup_logging();
 
     // Create kernel
-    agentos::kernel::Kernel kernel(config);
+    clove::kernel::Kernel kernel(config);
 
     // Initialize
     if (!kernel.init()) {
@@ -141,10 +134,8 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    // Print status box (use actual model from kernel after env loading)
-    std::string actual_model = kernel.get_llm_model();
-    print_status_box(config.socket_path, config.enable_sandboxing,
-                     actual_model.empty() ? "not configured" : actual_model);
+    // Print status box
+    print_status_box(config.socket_path, config.enable_sandboxing);
 
     // Ready message
     print_ready_message(config.socket_path);

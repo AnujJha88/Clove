@@ -5,7 +5,7 @@
 #include <cerrno>
 #include <cstring>
 
-namespace agentos::kernel {
+namespace clove::kernel {
 
 Reactor::Reactor() = default;
 
@@ -113,4 +113,4 @@ void Reactor::stop() {
     running_ = false;
 }
 
-} // namespace agentos::kernel
+} // namespace clove::kernel

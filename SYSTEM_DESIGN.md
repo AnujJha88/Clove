@@ -2,6 +2,8 @@
 
 > Comprehensive technical documentation explaining the CLOVE kernel architecture, component responsibilities, and code organization.
 
+Note: LLM calls were moved out of the kernel into the SDK (`agents/llm_service`). References to in-kernel LLM components below are historical.
+
 ---
 
 ## Table of Contents
@@ -106,10 +108,17 @@ CLOVE (Clove Lightweight Operating Virtualization Environment) is a **microkerne
 | **AgentManager** | `agent_process.cpp` | Multi-agent management, restart policies |
 | **Sandbox** | `sandbox.cpp` | Process isolation via namespaces/cgroups |
 | **Permissions** | `permissions.cpp` | Access control, path/command/domain checks |
+| **PermissionsStore** | `permissions_store.cpp` | Per-agent permissions storage |
+| **StateStore** | `state_store.cpp` | Shared key-value store with scopes/TTL |
+| **EventBus** | `event_bus.cpp` | Pub/sub event delivery |
+| **MailboxRegistry** | `ipc_mailbox.cpp` | Agent name registry + message queues |
 | **VirtualFS** | `virtual_fs.cpp` | In-memory filesystem for testing |
 | **WorldEngine** | `world_engine.cpp` | Multi-world simulation environments |
 | **AuditLog** | `audit_log.cpp` | Security event logging |
 | **ExecutionLog** | `execution_log.cpp` | Syscall recording and replay |
+| **AsyncTaskManager** | `async_task_manager.cpp` | Background execution for blocking syscalls |
+| **SyscallRouter** | `syscall_router.cpp` | Centralized syscall dispatch table |
+| **SyscallHandlers** | `syscall_handlers.hpp` | Modular syscall handler classes |
 | **Metrics** | `metrics.cpp` | CPU/memory/IO statistics from /proc |
 | **TunnelClient** | `tunnel_client.cpp` | Remote agent connectivity |
 | **LLMClient** | `llm_client.cpp` | Gemini API integration |

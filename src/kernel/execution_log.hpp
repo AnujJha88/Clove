@@ -13,7 +13,7 @@
 #include <cstdint>
 #include <nlohmann/json.hpp>
 
-namespace agentos::kernel {
+namespace clove::kernel {
 
 // Execution log entry for recording syscalls
 struct ExecutionLogEntry {
@@ -152,4 +152,4 @@ private:
     bool should_record(uint8_t opcode) const;
 };
 
-} // namespace agentos::kernel
+} // namespace clove::kernel
