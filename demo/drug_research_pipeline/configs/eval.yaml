@@ -1,0 +1,3 @@
+# Evaluation config
+metrics:
+  - "accuracy"

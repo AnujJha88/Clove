@@ -1,0 +1,4 @@
+# Featurization config
+method: "simple_counts"
+fail_once: false
+fail_mode: "memory"  # memory | exception | exit | timeout

@@ -1,0 +1,4 @@
+# Training config
+model: "threshold"
+fail_once: false
+fail_mode: "malformed"  # memory | exception | exit | timeout

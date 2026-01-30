@@ -1,163 +1,129 @@
-# DrugDiscovery Demo: Before & After Clove
+# Clove Drug Research ML Pipeline Demo
 
 ## Concept
 
-A multi-agent pharmaceutical research system that:
-1. Researches drug candidates for a target disease
-2. Runs computational tests/simulations
-3. Analyzes and validates results
-4. Generates a final research report
+A failure-aware, research-grade machine learning pipeline for drug discovery workflows.
+This demo intentionally avoids clinical decision-making and instead focuses on:
+- data processing
+- ML experimentation
+- reproducibility
+- auditability
 
-**Sales Pitch:** Show the same system built two ways - traditional Python (fragile) vs Clove (robust) - demonstrating why OS-level isolation matters for production AI agents.
-
----
-
-## The Agents
-
-| Agent | Role | Resource Profile |
-|-------|------|------------------|
-| **Coordinator** | Orchestrates workflow, assigns tasks | Low CPU/memory |
-| **Researcher** | Searches literature, finds drug candidates via LLM | LLM-heavy |
-| **Simulator** | Runs molecular property calculations | High CPU/memory |
-| **Validator** | Cross-checks results, flags anomalies | LLM-heavy |
-| **Reporter** | Compiles final report | Low resources |
+**Goal:** Show how Clove provides OS-level isolation, supervised execution, and
+artifact preservation for long-running, failure-prone drug research pipelines.
 
 ---
 
-## Part 1: WITHOUT Clove (The Problem)
+## Demo Objectives
 
-### Architecture
-```
-┌─────────────────────────────────────────────────────┐
-│              Single Python Process                   │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐ │
-│  │ Coordinator │  │ Researcher  │  │ Simulator   │ │
-│  │  (thread)   │  │  (thread)   │  │  (thread)   │ │
-│  └─────────────┘  └─────────────┘  └─────────────┘ │
-│  ┌─────────────┐  ┌─────────────┐                   │
-│  │ Validator   │  │  Reporter   │   SHARED STATE   │
-│  │  (thread)   │  │  (thread)   │   (race conds)   │
-│  └─────────────┘  └─────────────┘                   │
-└─────────────────────────────────────────────────────┘
-         │
-         ▼ One crash = ALL DEAD
-```
-
-### Implementation: `without_clove/`
-
-```
-without_clove/
-├── main.py                 # Entry point - runs all agents as threads
-├── agents/
-│   ├── __init__.py
-│   ├── coordinator.py      # Orchestration logic
-│   ├── researcher.py       # LLM-based research
-│   ├── simulator.py        # Computational tests (with memory leak!)
-│   ├── validator.py        # Result validation
-│   └── reporter.py         # Report generation
-├── shared_state.py         # Global mutable state (bad pattern)
-├── llm_client.py           # Direct Gemini API calls (no queuing)
-└── requirements.txt        # google-genai
-```
-
-### Failure Scenarios to Demonstrate
-
-1. **Crash Cascade** - Simulator raises exception → entire process dies
-2. **Memory Leak** - Simulator accumulates data → OOMs everything
-3. **LLM Race Condition** - Multiple agents hit rate limits
-4. **Runaway Agent** - Infinite loop can't be stopped
-5. **No Observability** - No audit trail, printf debugging only
+1. Run each pipeline stage as an isolated OS process under Clove.
+2. Enforce CPU, memory, and runtime limits per stage.
+3. Detect and recover from failures without losing intermediate artifacts.
+4. Produce a complete audit trail for reproducibility.
 
 ---
 
-## Part 2: WITH Clove (The Solution)
+## Pipeline Workflow
 
-### Architecture
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Clove Kernel                              │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │  Process Supervisor + LLM Queue + IPC Router + Audit Log  │  │
-│  └───────────────────────────────────────────────────────────┘  │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │
-     ┌─────────────────────┼─────────────────────┐
-     │                     │                     │
-┌────┴────┐          ┌────┴────┐          ┌────┴────┐
-│Researcher│          │Simulator│          │Validator│
-│ PID 1001 │          │ PID 1002│          │ PID 1003│
-│ 256MB max│          │ 512MB   │          │ 256MB   │
-└─────────┘          └─────────┘          └─────────┘
-     │                     │                     │
-     └─────────── IPC (kernel-mediated) ─────────┘
-```
-
-### Implementation: `with_clove/`
-
-```
-with_clove/
-├── main.py                 # Spawns agents via Clove SDK
-├── agents/
-│   ├── __init__.py
-│   ├── coordinator.py      # Uses client.spawn(), client.send()
-│   ├── researcher.py       # Uses client.think() - fair queued
-│   ├── simulator.py        # Memory-limited, can crash safely
-│   ├── validator.py        # Uses client.think()
-│   └── reporter.py         # Reads results via IPC
-└── requirements.txt        # clove-sdk
-```
-
-### How Clove Solves Each Problem
-
-| Problem | Without Clove | With Clove |
-|---------|---------------|------------|
-| Crash cascade | All agents die | Only crashed agent dies |
-| Memory leak | OOMs everything | Killed at limit, auto-restarted |
-| LLM race | Rate limit errors | Fair queuing through kernel |
-| Runaway agent | Can't stop it | `pause()` or `kill()` |
-| No observability | printf debugging | Metrics TUI, audit logs |
+1. Load molecular dataset (public or synthetic)
+2. Molecule featurization (fingerprints / graph features)
+3. Train predictive model (activity / toxicity proxy)
+4. Evaluate and validate model
+5. Generate research report
+6. Archive models and artifacts
 
 ---
 
-## Drug Discovery Workflow
+## Execution Model (Clove)
 
-```
-User: "Find treatments for Type 2 Diabetes"
-                    │
-                    ▼
-            ┌───────────────┐
-            │  COORDINATOR  │
-            │  Orchestrates │
-            └───────┬───────┘
-                    │
-        ┌───────────┼───────────┐
-        ▼           │           │
-┌───────────────┐   │           │
-│  RESEARCHER   │   │           │
-│ Find 5 drug   │   │           │
-│ candidates    │   │           │
-└───────┬───────┘   │           │
-        │           │           │
-        ▼           ▼           │
-        ┌───────────────┐       │
-        │   SIMULATOR   │       │
-        │ Test each     │       │
-        │ candidate     │       │
-        │ (CRASH HERE!) │       │
-        └───────┬───────┘       │
-                │               │
-                ▼               ▼
-        ┌───────────────┐
-        │   VALIDATOR   │
-        │ Verify results│
-        └───────┬───────┘
-                │
-                ▼
-        ┌───────────────┐
-        │   REPORTER    │
-        │ Generate PDF  │
-        └───────────────┘
-```
+- Each stage runs as a supervised OS process.
+- Clove enforces resource limits (CPU/memory/runtime).
+- Clove captures exit signals, logs, and metrics.
+- Failure policies handle retries or fallbacks per stage.
+
+### Clove SDK Usage (Conceptual)
+
+- `CloveClient()` or `CloveRuntime()` in `main.py` orchestrates stages.
+- `spawn()` (or equivalent) launches each stage with:
+  - `limits`: CPU, memory, runtime
+  - `restart_policy`: on-failure with max retries
+  - `env`/`args`: stage-specific configuration
+- `store()` / `fetch()` or IPC channels pass artifacts and metadata between stages.
+- `audit_log()` / metrics API records execution events.
+
+### Small Clove SDK Use Cases (Quick Guide)
+
+1. **Run a single stage with limits**
+   - Use `spawn()` with explicit `limits` to guarantee isolation.
+   - Example (conceptual):
+     ```python
+     with CloveClient() as client:
+         client.spawn(
+             name="featurize",
+             script="stages/featurize.py",
+             limits={"cpu": 1, "memory_mb": 1024, "runtime_s": 300}
+         )
+     ```
+
+2. **Retry on failure**
+   - Set `restart_policy` to recover from OOMs or bad inputs.
+   - Example:
+     ```python
+     client.spawn(
+         name="train",
+         script="stages/train.py",
+         restart_policy={"on_failure": True, "max_retries": 2}
+     )
+     ```
+
+3. **Pass artifacts between stages**
+   - Write outputs to `artifacts/` and register with `store()` or send via IPC.
+   - Example:
+     ```python
+     run_id = client.store({"features_path": "artifacts/features.parquet"})
+     client.send({"run_id": run_id}, to_name="train")
+     ```
+
+4. **Capture audit trail**
+   - Log parameters, seeds, and exit status to the audit log.
+   - Example:
+     ```python
+     client.audit_log({"stage": "evaluate", "metrics": metrics})
+     ```
+
+5. **Pause or stop a runaway stage**
+   - Use `pause()` / `kill()` to halt a misbehaving process.
+   - Example:
+     ```python
+     client.pause(name="train")
+     client.kill(name="train")
+     ```
+
+---
+
+## Failure Scenarios to Demonstrate
+
+1. **Memory exhaustion** during featurization.
+2. **Training instability** due to malformed molecular inputs.
+3. **Timeouts** on long-running model training.
+
+**Expected behavior:**
+- The failing process is terminated safely.
+- The pipeline retries with adjusted parameters.
+- Intermediate artifacts remain intact.
+
+---
+
+## Auditability and Reproducibility
+
+Each run should emit:
+- dataset identifiers and versions
+- featurization parameters
+- model configuration and hyperparameters
+- random seeds
+- evaluation metrics
+- execution logs and exit codes
+- artifact manifests (models, reports, intermediate data)
 
 ---
 
@@ -165,204 +131,171 @@ User: "Find treatments for Type 2 Diabetes"
 
 ```
 demo/
-├── PLAN.md                      # This file
-├── README.md                    # Overview, setup, run instructions
-├── without_clove/
-│   ├── main.py                  # Entry point
-│   ├── agents/
-│   │   ├── __init__.py
-│   │   ├── coordinator.py       # Thread-based orchestration
-│   │   ├── researcher.py        # LLM research (direct API)
-│   │   ├── simulator.py         # Has memory leak + crash
-│   │   ├── validator.py         # Validation logic
-│   │   └── reporter.py          # Report generation
-│   ├── shared_state.py          # Global dict (race conditions)
-│   ├── llm_client.py            # Direct Gemini wrapper
-│   └── requirements.txt
-├── with_clove/
-│   ├── main.py                  # Spawns via CloveClient
-│   ├── agents/
-│   │   ├── __init__.py
-│   │   ├── coordinator.py       # Uses spawn(), send()
-│   │   ├── researcher.py        # Uses think()
-│   │   ├── simulator.py         # Same crash, but isolated
-│   │   ├── validator.py         # Uses think()
-│   │   └── reporter.py          # Uses recv(), fetch()
-│   └── requirements.txt
-└── comparison.md                # Side-by-side for sales deck
+├── PLAN.md
+├── README.md                      # Overview, setup, run instructions
+├── drug_research_pipeline/
+│   ├── main.py                    # Orchestrates pipeline stages via Clove
+│   ├── stages/
+│   │   ├── load_data.py
+│   │   ├── featurize.py
+│   │   ├── train.py
+│   │   ├── evaluate.py
+│   │   ├── report.py
+│   │   └── archive.py
+│   ├── configs/
+│   │   ├── dataset.yaml
+│   │   ├── featurize.yaml
+│   │   ├── train.yaml
+│   │   ├── eval.yaml
+│   │   └── clove_limits.yaml      # CPU/mem/runtime + retry policy
+│   ├── artifacts/                 # Generated outputs (models, reports)
+│   └── logs/                      # Stage logs and audit trail
+└── comparison.md                  # Optional: baseline vs Clove summary
 ```
 
 ---
 
 ## Implementation Plan
 
-### Phase 1: Without Clove (~10 files)
-1. Create directory structure
-2. `llm_client.py` - Gemini API wrapper
-3. `shared_state.py` - Global mutable dict
-4. `agents/researcher.py` - Find drug candidates via LLM
-5. `agents/simulator.py` - Molecular tests WITH intentional memory leak + crash
-6. `agents/validator.py` - Cross-check results
-7. `agents/reporter.py` - Generate summary
-8. `agents/coordinator.py` - Spawn threads, manage workflow
-9. `main.py` - Entry point
-10. `requirements.txt`
+### Phase 1: Pipeline Skeleton
+1. Create directory structure.
+2. Add config files for dataset + limits + failure toggles.
+3. Define a stage contract:
+   - Input: artifact path + config
+   - Output: artifact path + metadata JSON
+4. Implement stage scripts with placeholder logic and clear I/O contracts.
+5. Implement `main.py` with Clove SDK orchestration:
+   - Initialize client/runtime
+   - Spawn each stage with limits and retry policy
+   - Persist artifacts and metadata via store/fetch or IPC
+   - Collect exit status and logs
 
-### Phase 2: With Clove (~10 files)
-1. Create directory structure
-2. Convert each agent to use CloveClient
-3. Replace threading with spawn()
-4. Replace shared_state with store()/fetch()
-5. Replace direct LLM with think()
-6. Replace queues with send()/recv()
-7. Keep same intentional failures
-8. `main.py` - Spawn all agents
-9. `requirements.txt`
+### Phase 2: Failure Injection
+1. Add controlled OOM in `featurize.py` (toggle via config).
+2. Add malformed input path in `train.py` (toggle via config).
+3. Add timeout config for long training.
+4. Ensure Clove restarts or retries and preserves artifacts.
+5. Verify audit logs and artifacts remain intact after retries.
 
-### Phase 3: Documentation
-1. `demo/README.md` - Setup and run instructions
-2. `demo/comparison.md` - Sales comparison table
+### Phase 3: Auditability
+1. Emit metadata manifest per stage.
+2. Capture seeds, params, and metrics.
+3. Generate a final research report with run summary.
 
 ---
 
-## Key Code Patterns
+## Implementation Modes
 
-### Without Clove (Fragile)
-```python
-# shared_state.py - Race condition prone
-results = {}  # Global mutable state
+### Mode A: Normal (Lightweight)
 
-# simulator.py - Memory leak
-accumulated_data = []  # Never cleared
-def simulate(molecule):
-    accumulated_data.append(heavy_computation())  # LEAK!
-    if random.random() < 0.3:
-        raise Exception("Simulation failed!")  # CRASH!
+**Purpose:** fast demo, minimal deps, real dataset (small/local).
 
-# main.py - All threads share fate
-threads = [Thread(target=agent.run) for agent in agents]
-for t in threads:
-    t.start()
-# One crash = all dead
-```
+- **Data:** real dataset file (small/local JSON)
+- **Featurize:** simple counts (length, atom counts)
+- **Model:** threshold or simple baseline
+- **Metrics:** accuracy only
+- **Artifacts:** small JSON outputs
+- **Dependencies:** stdlib only (no heavy ML libs)
 
-### With Clove (Robust)
-```python
-# main.py - Isolated processes
-with CloveClient() as client:
-    client.spawn(name="simulator", script="agents/simulator.py",
-                 limits={"memory": 512*1024*1024},
-                 restart_policy="on-failure")
+### Mode B: All Guns Blazing (Heavy ML)
 
-# simulator.py - Same crash, but isolated
-with CloveClient() as client:
-    client.register_name("simulator")
-    while True:
-        msg = client.recv_messages()
-        result = simulate(msg["molecule"])  # Can crash safely!
-        client.send_message(result, to_name="validator")
-```
+**Purpose:** realistic drug ML pipeline with modern tooling.
 
----
+#### Model Stack (Config-Driven)
 
-## Demo Script
+**Baselines**
+- RDKit Morgan fingerprints + RandomForest (classification/regression)
+- RDKit descriptors + XGBoost/LightGBM (optional)
 
-### Run Without Clove
-```bash
-cd demo/without_clove
-pip install -r requirements.txt
-python main.py --disease "Type 2 Diabetes"
+**Neural Models**
+- MLP on fingerprints (PyTorch)
+- Optional GNN (PyTorch Geometric) on molecular graphs
 
-# Expected output:
-# [00:00] Coordinator: Starting research...
-# [00:05] Researcher: Found 5 candidates
-# [00:10] Simulator: Testing metformin...
-# [00:15] Simulator: Testing glipizide...
-# [00:20] ERROR: Simulation crashed!
-# [00:20] Process terminated. All progress lost.
-```
+#### Featurization Options
 
-### Run With Clove
-```bash
-# Terminal 1: Kernel
-sudo ./build/clove_kernel
+- `fingerprints`: RDKit Morgan fingerprints
+- `descriptors`: RDKit PhysChem descriptors
+- `graphs`: node/edge features for GNNs
 
-# Terminal 2: Metrics TUI
-python agents/dashboard/metrics_tui.py
+#### Metrics
 
-# Terminal 3: Demo
-cd demo/with_clove
-python main.py --disease "Type 2 Diabetes"
+- Classification: ROC-AUC, PR-AUC, accuracy
+- Regression: RMSE, MAE, R2
 
-# Expected output:
-# [00:00] Coordinator: Starting research...
-# [00:05] Researcher: Found 5 candidates
-# [00:10] Simulator: Testing metformin...
-# [00:15] Simulator: Testing glipizide...
-# [00:20] Simulator CRASHED - auto-restarting (attempt 1)
-# [00:22] Simulator: Resumed, testing sitagliptin...
-# [00:30] Validator: All results verified
-# [00:35] Reporter: Report saved to output/report.md
-# [00:35] SUCCESS: Research complete!
-```
+#### Artifacts
+
+- `features.npz` or `features.parquet`
+- `model.pt` (PyTorch) or `model.pkl` (sklearn)
+- `metrics.json`
+- training curves (optional)
 
 ---
 
-## Verification
+## Mode Selection (How to Switch)
 
-1. **Without Clove crashes correctly:**
-   ```bash
-   python demo/without_clove/main.py
-   # Should crash and lose all progress
-   ```
-
-2. **With Clove recovers:**
-   ```bash
-   python demo/with_clove/main.py
-   # Should recover from crash and complete
-   ```
-
-3. **Metrics visible in TUI:**
-   - See each agent's memory usage
-   - Watch simulator restart
-   - View audit log
-
-4. **Pause/Resume works:**
-   ```python
-   client.pause(name="simulator")  # Freezes agent
-   client.resume(name="simulator") # Resumes
-   ```
+- **Dataset**: set `configs/dataset.yaml` `path` to a real dataset for both modes.
+- **Featurizer**: set `configs/featurize.yaml` `method` to `fingerprints`, `descriptors`, or `graphs`.
+- **Model**: set `configs/train.yaml` `model` to `rf`, `xgb`, `mlp`, or `gnn`.
+- **Dependencies**: Heavy ML requires RDKit + ML libs; Normal uses stdlib only.
 
 ---
 
-## Sales Talking Points
+## Wiring Details (Stage Contracts)
 
-### For Engineers
-- Process isolation via Linux namespaces
-- cgroups v2 memory/CPU limits
-- Fair LLM queuing (no rate limit races)
-- Full audit trail of every syscall
+### Stage 1: `load_data.py`
+- **Input:** `configs/dataset.yaml`
+- **Output:** `artifacts/<run_id>/dataset.json`
+- **Metadata:** dataset name, version, checksum, split info
 
-### For Managers
-- Agents can't crash each other
-- Auto-recovery with exponential backoff
-- Real-time observability dashboard
-- Compliance-ready audit logging
+### Stage 2: `featurize.py`
+- **Input:** dataset + `configs/featurize.yaml`
+- **Output:** `features.npz` (or parquet), `feature_meta.json`
+- **Failure Injection:** OOM or malformed molecule toggle
 
-### Demo Highlights
-1. Show crash in without_clove → everything dies
-2. Show same crash in with_clove → only simulator dies
-3. Show auto-restart in TUI metrics
-4. Show audit log of what happened
-5. Show pause/resume control
+### Stage 3: `train.py`
+- **Input:** features + labels + `configs/train.yaml`
+- **Output:** `model.pt` / `model.pkl`, `train_metrics.json`
+- **Failure Injection:** malformed input / timeout toggle
+
+### Stage 4: `evaluate.py`
+- **Input:** model + test split
+- **Output:** `metrics.json`, `predictions.json`
+
+### Stage 5: `report.py`
+- **Input:** metrics + model metadata
+- **Output:** `report.md` (summary + tables)
+
+### Stage 6: `archive.py`
+- **Input:** artifacts directory
+- **Output:** `manifest.json` (all outputs + sizes + hashes)
 
 ---
 
-## Timeline Estimate
+## Clove SDK Wiring (How It Runs)
 
-| Phase | Task | Files |
-|-------|------|-------|
-| Phase 1 | Without Clove implementation | ~10 files |
-| Phase 2 | With Clove conversion | ~10 files |
-| Phase 3 | Documentation & polish | ~3 files |
-| **Total** | | ~23 files |
+1. `main.py` spawns each stage via `CloveClient.spawn()` with limits from `configs/clove_limits.yaml`.
+2. Orchestrator sends a `run_stage` IPC message including:
+   - `run_id`, `artifacts_dir`, `logs_dir`
+   - `config` (stage-specific)
+   - `input` (previous stage output)
+3. Stage registers its name, runs once, writes artifacts, and sends `stage_complete`.
+4. Orchestrator waits for completion or retries (Clove restart + resend).
+5. Final summary stored in `artifacts/<run_id>/pipeline_summary.json`.
+
+---
+
+## Demo Script (High Level)
+
+1. Start Clove kernel/runtime.
+2. Run `demo/drug_research_pipeline/main.py`.
+3. Observe failure, retry, and recovery.
+4. Inspect `artifacts/` and `logs/` for audit trail.
+
+---
+
+## Success Criteria
+
+- Failures do not crash the entire pipeline.
+- Artifacts persist across retries.
+- Logs and metadata are sufficient to reproduce results.
+- Final report is generated after recovery.

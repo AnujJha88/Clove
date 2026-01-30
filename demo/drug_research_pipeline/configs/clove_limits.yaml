@@ -1,0 +1,25 @@
+# Clove limits + retry policy
+limits:
+  load_data: { memory: 134217728, cpu_quota: 50000, max_pids: 16 }
+  featurize: { memory: 268435456, cpu_quota: 75000, max_pids: 16 }
+  train: { memory: 268435456, cpu_quota: 100000, max_pids: 16 }
+  evaluate: { memory: 134217728, cpu_quota: 50000, max_pids: 16 }
+  report: { memory: 67108864, cpu_quota: 50000, max_pids: 8 }
+  archive: { memory: 67108864, cpu_quota: 50000, max_pids: 8 }
+
+timeouts:
+  load_data: 15
+  featurize: 20
+  train: 20
+  evaluate: 15
+  report: 10
+  archive: 10
+
+retries:
+  default:
+    max_attempts: 3
+    resend_interval_s: 2
+
+restart_policy: "on-failure"
+max_restarts: 2
+restart_window: 300

@@ -1,0 +1,5 @@
+# Synthetic dataset config
+name: "synthetic_small"
+version: "v0"
+seed: 1337
+num_molecules: 12
