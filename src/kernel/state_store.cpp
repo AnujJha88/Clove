@@ -85,7 +85,7 @@ DeleteResult StateStore::erase(uint32_t agent_id, const std::string& key) {
     DeleteResult result;
     if (key.empty()) {
         return result;
-    }
+    }  
 
     std::vector<std::string> keys_to_try = {
         key,
