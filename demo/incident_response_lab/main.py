@@ -55,19 +55,58 @@ def wait_for_event(client: CloveClient, event_type: str, timeout_s: int = 10) ->
     return None
 
 
-def build_permissions(base_dir: Path) -> Dict[str, Dict[str, Any]]:
-    allowed_root = str(base_dir / "*")
-    filesystem = {
-        "read": [allowed_root],
-        "write": [allowed_root],
-    }
+def wait_for_acks(client: CloveClient, expected_agents: list[str], timeout_s: int = 10) -> dict[str, bool]:
+    """Wait for init_ack messages from all expected agents."""
+    acks = {agent: False for agent in expected_agents}
+    deadline = time.time() + timeout_s
+
+    while time.time() < deadline:
+        if all(acks.values()):
+            break
+        result = client.recv_messages()
+        for msg in result.get("messages", []):
+            payload = msg.get("message", {})
+            if payload.get("type") == "init_ack":
+                agent = payload.get("agent")
+                if agent in acks:
+                    acks[agent] = True
+                    print(f"[orchestrator] Received init_ack from {agent}")
+        time.sleep(0.1)
+
+    return acks
+
+
+def build_permissions(base_dir: Path, logs_dir: Path, artifacts_dir: Path) -> Dict[str, Dict[str, Any]]:
+    # fnmatch with FNM_PATHNAME means * doesn't match /
+    # So we need patterns for each directory level we want to allow
+    # Pattern: dir/* matches files in dir, dir/*/* matches one level deeper, etc.
+    read_paths = [
+        str(base_dir / "*"),
+        str(base_dir / "*" / "*"),
+        str(base_dir / "*" / "*" / "*"),
+        str(logs_dir / "*"),
+        str(logs_dir / "*" / "*"),
+        str(artifacts_dir / "*"),
+        str(artifacts_dir / "*" / "*"),
+    ]
+    write_paths = [
+        str(logs_dir / "*"),
+        str(logs_dir / "*" / "*"),
+        str(artifacts_dir / "*"),
+        str(artifacts_dir / "*" / "*"),
+    ]
     remediation = {
-        "filesystem": filesystem,
-        "exec": ["python3 "],
+        "filesystem": {
+            "read": read_paths,
+            "write": write_paths,
+        },
         "max_exec_time_ms": 2000,
     }
     auditor = {
-        "filesystem": filesystem,
+        "filesystem": {
+            "read": read_paths,
+            "write": write_paths,
+        },
         "max_exec_time_ms": 2000,
     }
     return {
@@ -118,8 +157,11 @@ def main() -> int:
         if args.record_execution:
             client.start_recording(include_exec=True)
 
-        permissions = build_permissions(base_dir)
+        permissions = build_permissions(base_dir, logs_dir, artifacts_dir)
         agents: dict[str, int] = {}
+
+        # Track socket IDs by name (resolved after registration)
+        socket_ids: dict[str, int] = {}
 
         for agent in AGENTS:
             script_path = base_dir / "agents" / f"{agent}.py"
@@ -140,17 +182,30 @@ def main() -> int:
                 print(f"[orchestrator] ERROR: Failed to spawn {agent}: {spawn_result}")
                 return 1
 
-            agent_id = int(spawn_result.get("id", 0))
-            agents[agent] = agent_id
-
-            if agent in permissions:
-                client.set_permissions(permissions=permissions[agent], agent_id=agent_id)
-            else:
-                client.set_permissions(level="readonly", agent_id=agent_id)
+            agents[agent] = int(spawn_result.get("id", 0))
 
             if not wait_for_name(client, agent):
                 print(f"[orchestrator] ERROR: {agent} did not register")
                 return 1
+
+        # Set permissions using socket IDs (from send_message response)
+        # This ensures we're setting permissions for the actual connected agent
+        for agent in AGENTS:
+            # Send a ping to get the resolved socket ID
+            ping_result = client.send_message({"type": "ping"}, to_name=agent)
+            socket_id = ping_result.get("delivered_to", 0)
+
+            # Validate socket ID - fail explicitly if invalid
+            if not socket_id or socket_id == 0:
+                print(f"[orchestrator] ERROR: Could not resolve socket ID for {agent}")
+                return 1
+
+            socket_ids[agent] = socket_id
+
+            if agent in permissions:
+                client.set_permissions(permissions=permissions[agent], agent_id=socket_id)
+            else:
+                client.set_permissions(level="readonly", agent_id=socket_id)
 
         init_message = {
             "type": "init",
@@ -165,23 +220,40 @@ def main() -> int:
         for agent in AGENTS:
             client.send_message(init_message, to_name=agent)
 
+        # Wait for init acknowledgments instead of sleeping
+        acks = wait_for_acks(client, AGENTS, timeout_s=10)
+        missing_acks = [agent for agent, acked in acks.items() if not acked]
+        if missing_acks:
+            print(f"[orchestrator] WARN: Missing init_ack from: {missing_acks}")
+            # Continue anyway, but log warning
+
         client.send_message({
             "type": "scan_logs",
             "log_path": str(log_path)
         }, to_name="log_watcher")
 
         scan_result = wait_for_event(client, "scan_complete", timeout_s=15)
+        incident_count = 0
         if scan_result:
             client.send_message(scan_result, to_name="auditor")
+            incident_count = scan_result.get("count", 0)
         else:
             print("[orchestrator] WARN: log scan timed out")
 
         time.sleep(1.0)
-        client.send_message({"type": "finalize"}, to_name="auditor")
+
+        # Include incident count in finalize message to help auditor know what to expect
+        client.send_message({
+            "type": "finalize",
+            "incident_count": incident_count
+        }, to_name="auditor")
 
         audit_report = wait_for_event(client, "audit_report", timeout_s=15)
         if audit_report:
-            print(f"[orchestrator] audit report: {audit_report.get('path')}")
+            if audit_report.get("error"):
+                print(f"[orchestrator] ERROR: audit report failed: {audit_report.get('error')}")
+            else:
+                print(f"[orchestrator] audit report: {audit_report.get('path')}")
         else:
             print("[orchestrator] WARN: auditor did not respond")
 

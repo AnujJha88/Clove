@@ -1,0 +1,199 @@
+{
+  "service": {
+    "name": "CLOVE SOC",
+    "report_interval_seconds": 300,
+    "heartbeat_interval_seconds": 5,
+    "dashboard_refresh_ms": 500
+  },
+
+  "systems": ["web", "auth", "database", "network"],
+
+  "log_sources": {
+    "journalctl": {
+      "enabled": true,
+      "units": ["sshd", "nginx", "docker", "systemd"],
+      "priority": "warning"
+    },
+    "files": {
+      "enabled": true,
+      "paths": ["/var/log/syslog", "/var/log/auth.log"]
+    },
+    "custom": {
+      "enabled": true,
+      "paths": []
+    }
+  },
+
+  "health": {
+    "update_interval_seconds": 5,
+    "thresholds": {
+      "cpu": 80.0,
+      "memory": 85.0,
+      "disk": 90.0,
+      "latency_ms": 500.0,
+      "error_rate": 5.0
+    }
+  },
+
+  "triage": {
+    "severity_priority_map": {
+      "low": "P4",
+      "medium": "P3",
+      "high": "P2",
+      "critical": "P1"
+    },
+    "velocity_thresholds": {
+      "high": 20,
+      "critical": 50
+    },
+    "velocity_window_seconds": 60
+  },
+
+  "event_simulator": {
+    "enabled": true,
+    "default_scenario": "mixed_demo",
+    "auto_start": true,
+    "scenarios": {
+      "brute_force": {"max_events": 50, "intensity": "high"},
+      "sql_injection": {"max_events": 10, "intensity": "medium"},
+      "port_scan": {"max_events": 30, "intensity": "high"},
+      "data_exfil": {"max_events": 5, "intensity": "low"},
+      "mixed_demo": {"includes": ["brute_force", "port_scan"], "intensity": "demo"}
+    }
+  },
+
+  "ml_scoring": {
+    "enabled": true,
+    "model_path": "models/severity_model.pkl",
+    "confidence_threshold": 0.7,
+    "fallback_to_rules": true
+  },
+
+  "threat_intel": {
+    "enabled": true,
+    "cache_ttl_seconds": 3600,
+    "enrichment_timeout_s": 2.0,
+    "providers": {
+      "abuseipdb": {
+        "enabled": false,
+        "api_key": "${ABUSEIPDB_API_KEY}"
+      },
+      "virustotal": {
+        "enabled": false,
+        "api_key": "${VIRUSTOTAL_API_KEY}"
+      },
+      "mock": {
+        "enabled": true
+      }
+    }
+  },
+
+  "alert_escalation": {
+    "enabled": false,
+    "escalate_severities": ["high", "critical"],
+    "webhooks": [
+      {
+        "name": "slack",
+        "type": "slack",
+        "url": "${SLACK_WEBHOOK_URL}",
+        "severity_filter": ["critical", "high"],
+        "enabled": true
+      },
+      {
+        "name": "discord",
+        "type": "discord",
+        "url": "${DISCORD_WEBHOOK_URL}",
+        "severity_filter": ["critical"],
+        "enabled": false
+      },
+      {
+        "name": "pagerduty",
+        "type": "pagerduty",
+        "url": "https://events.pagerduty.com/v2/enqueue",
+        "routing_key": "${PAGERDUTY_ROUTING_KEY}",
+        "severity_filter": ["critical"],
+        "enabled": false
+      }
+    ],
+    "rate_limit": {
+      "max_per_minute": 10
+    }
+  },
+
+  "remediation": {
+    "mode": "sandbox_exec",
+    "execution": {
+      "timeout_ms": 5000,
+      "dry_run_prefix": "echo '[DRY-RUN]'",
+      "working_dir": "/tmp/clove-remediation"
+    },
+    "safety": {
+      "block_internal_ips": false,
+      "revoke_system_users": false,
+      "max_blocks_per_minute": 10,
+      "default_block_duration_minutes": 60
+    },
+    "expiration": {
+      "enabled": true,
+      "check_interval_seconds": 30
+    },
+    "approval": {
+      "require_for_critical": false,
+      "require_for_high_impact": true
+    },
+    "playbook": {
+      "SQL_INJECTION": {"action": "block_ip", "description": "Block the attacking IP address"},
+      "SQL_INJECT": {"action": "block_ip", "description": "Block the attacking IP address"},
+      "BRUTE_FORCE": {"action": "block_ip", "description": "Block IP and lock account temporarily"},
+      "DDOS_DETECT": {"action": "enable_ddos_protection", "description": "Enable DDoS mitigation"},
+      "C2_BEACON": {"action": "isolate_host", "description": "Isolate compromised host"},
+      "PORT_SCAN": {"action": "block_ip", "description": "Block the scanning IP address"},
+      "PATH_TRAVERSAL": {"action": "block_ip", "description": "Block the attacking IP address"},
+      "XSS_ATTEMPT": {"action": "block_ip", "description": "Block the attacking IP address"},
+      "PRIV_ESC": {"action": "revoke_session", "description": "Revoke user session"},
+      "DATA_EXFIL": {"action": "revoke_session", "description": "Revoke user session and investigate"},
+      "UNAUTH_ACCESS": {"action": "revoke_session", "description": "Revoke access and notify admin"},
+      "FAILED_LOGIN": {"action": "monitor_ip", "description": "Monitor source IP for brute force"},
+      "INVALID_USER": {"action": "monitor_ip", "description": "Track invalid username attempts"},
+      "AUTHENTICATION_FAILURE": {"action": "monitor_ip", "description": "Track authentication failures"},
+      "HIGH_CPU": {"action": "scale_resources", "description": "Consider scaling or investigating process"},
+      "HIGH_MEMORY": {"action": "investigate", "description": "Investigate memory leak or high usage"},
+      "HIGH_DISK": {"action": "cleanup", "description": "Trigger disk cleanup procedures"}
+    }
+  },
+
+  "rules": {
+    "SQL_INJECTION": {"severity": "critical", "title": "SQL Injection attempt"},
+    "SQL_INJECT": {"severity": "critical", "title": "SQL Injection blocked"},
+    "BRUTE_FORCE": {"severity": "critical", "title": "Brute force attack"},
+    "DDOS_DETECT": {"severity": "critical", "title": "DDoS pattern detected"},
+    "C2_BEACON": {"severity": "critical", "title": "C2 beacon detected"},
+    "PRIV_ESC": {"severity": "critical", "title": "Privilege escalation"},
+    "DATA_EXFIL": {"severity": "critical", "title": "Data exfiltration"},
+    "UNAUTH_ACCESS": {"severity": "critical", "title": "Unauthorized access"},
+    "PORT_SCAN": {"severity": "high", "title": "Port scan detected"},
+    "PATH_TRAVERSAL": {"severity": "high", "title": "Path traversal attempt"},
+    "XSS_ATTEMPT": {"severity": "high", "title": "XSS attempt"},
+    "ACCOUNT_LOCKOUT": {"severity": "high", "title": "Account locked"},
+    "DEADLOCK": {"severity": "high", "title": "Database deadlock"},
+    "HTTP_ERROR": {"severity": "medium", "title": "HTTP 5xx error"},
+    "RATE_LIMIT": {"severity": "medium", "title": "Rate limit exceeded"},
+    "SLOW_REQUEST": {"severity": "medium", "title": "Slow request"},
+    "SLOW_QUERY": {"severity": "medium", "title": "Slow database query"},
+    "POOL_EXHAUSTED": {"severity": "medium", "title": "Connection pool exhausted"},
+    "LOGIN_FAIL": {"severity": "medium", "title": "Failed login attempt"},
+    "MFA_FAIL": {"severity": "medium", "title": "MFA verification failed"},
+    "FW_DENY": {"severity": "medium", "title": "Firewall blocked connection"},
+    "BW_SPIKE": {"severity": "medium", "title": "Bandwidth spike"},
+    "CONN_TIMEOUT": {"severity": "medium", "title": "Connection timeout"},
+    "Failed password": {"severity": "medium", "title": "SSH failed password"},
+    "authentication failure": {"severity": "medium", "title": "PAM authentication failure"},
+    "Invalid user": {"severity": "medium", "title": "SSH invalid user attempt"},
+    "Connection closed": {"severity": "low", "title": "SSH connection closed"},
+    "error": {"severity": "low", "title": "Generic error"},
+    "warning": {"severity": "low", "title": "Generic warning"},
+    "segfault": {"severity": "high", "title": "Segmentation fault"},
+    "OOM": {"severity": "high", "title": "Out of memory"},
+    "kernel panic": {"severity": "critical", "title": "Kernel panic"}
+  }
+}
