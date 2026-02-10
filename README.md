@@ -21,11 +21,25 @@ A microkernel runtime for AI agents. Provides OS-level isolation, resource limit
 
 ## Quick Start
 
-### 1. Build the Kernel
+### Option A: Docker (Recommended)
+
+```bash
+# Pull and run
+docker pull aniiiixd/clove
+docker run -it --rm -v /tmp:/tmp aniiiixd/clove
+
+# Or build locally
+git clone https://github.com/aniiiiXD/Clove.git
+cd clove
+docker build -t clove .
+docker run -it --rm -v /tmp:/tmp clove
+```
+
+### Option B: Build from Source
 
 ```bash
 # Clone and build
-git clone https://github.com/anixd/clove.git
+git clone https://github.com/aniiiiXD/Clove.git
 cd clove
 
 # Install dependencies (Ubuntu/Debian)
@@ -37,7 +51,7 @@ cmake .. -DCMAKE_BUILD_TYPE=Release
 make -j$(nproc)
 ```
 
-### 2. Run the Kernel
+### Run the Kernel (if built from source)
 
 ```bash
 # Start the kernel (requires root for full sandboxing)
@@ -49,13 +63,13 @@ sudo ./clove_kernel
 
 The kernel listens on `/tmp/clove.sock` by default.
 
-### 3. Install the SDK
+### Install the SDK
 
 ```bash
 pip install clove-sdk
 ```
 
-### 4. Write Your First Agent
+### Write Your First Agent
 
 ```python
 from clove_sdk import CloveClient
