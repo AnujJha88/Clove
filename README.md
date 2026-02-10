@@ -30,7 +30,7 @@ docker run -it --rm -v /tmp:/tmp aniiiixd/clove
 
 # Or build locally
 git clone https://github.com/aniiiiXD/Clove.git
-cd clove
+cd Clove
 docker build -t clove .
 docker run -it --rm -v /tmp:/tmp clove
 ```
@@ -40,7 +40,7 @@ docker run -it --rm -v /tmp:/tmp clove
 ```bash
 # Clone and build
 git clone https://github.com/aniiiiXD/Clove.git
-cd clove
+cd Clove
 
 # Install dependencies (Ubuntu/Debian)
 sudo apt install build-essential cmake libssl-dev pkg-config
