@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
 #include <vector>
-
+#include<cstdint>
 namespace clove::services::llm {
 
 struct LLMConfig {
