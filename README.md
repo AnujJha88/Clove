@@ -43,7 +43,7 @@ git clone https://github.com/aniiiiXD/Clove.git
 cd Clove
 
 # Install dependencies (Ubuntu/Debian)
-sudo apt install build-essential cmake libssl-dev pkg-config
+sudo apt install build-essential cmake libssl-dev pkg-config liburing-dev
 
 # Build
 mkdir build && cd build
