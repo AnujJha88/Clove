@@ -88,9 +88,6 @@ add_executable(clove_kernel
     src/metrics/metrics.cpp
     src/worlds/virtual_fs.cpp
     src/worlds/world_engine.cpp
-    src/core/logger.cpp
-    src/core/config.cpp
-    src/core/paths.cpp
 )
 
 target_include_directories(clove_kernel PRIVATE
