@@ -28,7 +28,6 @@ import logging
 import argparse
 import os
 import signal
-from typing import Optional
 from dotenv import load_dotenv
 
 try:

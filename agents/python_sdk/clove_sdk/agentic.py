@@ -9,7 +9,7 @@ and reason iteratively - similar to Claude Code.
 import json
 import re
 from typing import Optional, Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from .client import CloveClient
 
@@ -143,18 +143,18 @@ Always respond with your reasoning, then tool calls in this format:
         cwd = arguments.get("cwd")
         result = self.client.exec(command, cwd=cwd)
         return {
-            "success": result.get("success", False),
-            "output": result.get("stdout", ""),
-            "exit_code": result.get("exit_code", -1)
+            "success": result.success,
+            "output": result.stdout,
+            "exit_code": result.exit_code
         }
 
     def _handle_read_file(self, arguments: dict) -> dict:
         path = arguments.get("path", "")
         result = self.client.read_file(path)
         return {
-            "success": result.get("success", False),
-            "content": result.get("content", ""),
-            "size": result.get("size", 0)
+            "success": result.success,
+            "content": result.content,
+            "size": result.size
         }
 
     def _handle_write_file(self, arguments: dict) -> dict:
@@ -163,8 +163,8 @@ Always respond with your reasoning, then tool calls in this format:
         mode = arguments.get("mode", "write")
         result = self.client.write_file(path, content, mode=mode)
         return {
-            "success": result.get("success", False),
-            "bytes_written": result.get("bytes_written", 0)
+            "success": result.success,
+            "bytes_written": result.bytes_written
         }
 
     def _handle_done(self, arguments: dict) -> dict:

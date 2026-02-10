@@ -1,0 +1,28 @@
+{
+  "description": "Resource limits for YC demo agents",
+  "limits": {
+    "scout": {
+      "memory_mb": 256,
+      "cpu_percent": 30,
+      "max_pids": 10
+    },
+    "critic": {
+      "memory_mb": 256,
+      "cpu_percent": 25,
+      "max_pids": 10
+    },
+    "synthesizer": {
+      "memory_mb": 256,
+      "cpu_percent": 25,
+      "max_pids": 10
+    },
+    "auditor": {
+      "memory_mb": 128,
+      "cpu_percent": 10,
+      "max_pids": 5
+    }
+  },
+  "restart_policy": "on_failure",
+  "max_restarts": 3,
+  "restart_window": 60
+}

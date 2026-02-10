@@ -14,7 +14,6 @@ from pathlib import Path
 try:
     from rich.console import Console
     from rich.table import Table
-    from rich.progress import Progress, SpinnerColumn, TextColumn
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False

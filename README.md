@@ -1,164 +1,210 @@
 # Clove
 
-A microkernel runtime for AI agents. Like Postgres for databases — Clove is the server that provides OS-level isolation, resource limits, and sandboxing for your agents.
+A microkernel runtime for AI agents. Provides OS-level isolation, resource limits, and sandboxing for autonomous agents.
 
 ```
 ┌─────────────────────────────────┐
 │  Your Agent Code (Python)       │  ← pip install clove-sdk
 │  from clove_sdk import ...      │
 └────────────┬────────────────────┘
-             │ connects to
+             │ Unix socket
 ┌────────────▼────────────────────┐
-│  Clove Runtime                  │  ← docker / binary / cloud
+│  Clove Kernel (C++)             │  ← ./clove_kernel
 │  • Process isolation            │
 │  • cgroups resource limits      │
 │  • Linux namespace sandboxing   │
-│  • Inter-agent IPC             │
+│  • Inter-agent IPC              │
 └─────────────────────────────────┘
 ```
 
 ---
 
-## Start the Runtime
+## Quick Start
 
-**Docker** (recommended):
+### 1. Build the Kernel
+
 ```bash
-docker run -d --privileged ghcr.io/anixd/clove
+# Clone and build
+git clone https://github.com/anixd/clove.git
+cd clove
+
+# Install dependencies (Ubuntu/Debian)
+sudo apt install build-essential cmake libssl-dev pkg-config
+
+# Build
+mkdir build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+make -j$(nproc)
 ```
 
-**Local binary:**
+### 2. Run the Kernel
+
 ```bash
-curl -fsSL https://raw.githubusercontent.com/anixd/clove/main/install.sh | bash
-clove_kernel
+# Start the kernel (requires root for full sandboxing)
+sudo ./clove_kernel
+
+# Or without sandboxing (no root required)
+./clove_kernel --no-sandbox
 ```
 
-**From source:**
-```bash
-git clone https://github.com/anixd/clove.git && cd clove
-mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release && make -j$(nproc)
-./clove_kernel
-```
+The kernel listens on `/tmp/clove.sock` by default.
 
----
-
-## Install the SDK
+### 3. Install the SDK
 
 ```bash
 pip install clove-sdk
 ```
 
-LLM calls are handled by the SDK via the local `agents/llm_service` wrapper (set `GEMINI_API_KEY` in your environment).
-
----
-
-## Write an Agent
+### 4. Write Your First Agent
 
 ```python
 from clove_sdk import CloveClient
 
 with CloveClient() as client:
-    # Query LLM
-    result = client.think("Summarize the theory of relativity in one sentence")
-    print(result['content'])
+    # Test connection
+    info = client.hello()
+    print(f"Connected to kernel v{info.version}")
 
-    # Execute commands (sandboxed)
-    output = client.exec("ls /tmp")
-    print(output['stdout'])
+    # Execute a command
+    result = client.exec("echo 'Hello from Clove!'")
+    print(result.stdout)
 
-    # Spawn a child agent with resource limits
-    client.spawn(
+    # Read/write files
+    client.write_file("/tmp/test.txt", "Hello World")
+    content = client.read_file("/tmp/test.txt")
+    print(content.content)
+```
+
+Run it:
+```bash
+python my_agent.py
+```
+
+---
+
+## SDK Features
+
+### Command Execution
+
+```python
+from clove_sdk import CloveClient, ExecResult
+
+with CloveClient() as client:
+    result: ExecResult = client.exec("ls -la /tmp")
+    print(f"Exit code: {result.exit_code}")
+    print(result.stdout)
+```
+
+### Spawn Child Agents
+
+```python
+from clove_sdk import CloveClient, SpawnResult
+
+with CloveClient() as client:
+    # Spawn a sandboxed agent with resource limits
+    spawn: SpawnResult = client.spawn(
         name="worker",
         script="/path/to/worker.py",
         sandboxed=True,
         limits={"memory": 256 * 1024 * 1024, "cpu_quota": 50000}
     )
+    print(f"Spawned agent {spawn.agent_id} (PID: {spawn.pid})")
 
-    # Check what's running
+    # List running agents
     agents = client.list_agents()
-    print(agents)
+    for agent in agents:
+        print(f"{agent.name}: {agent.state.value}")
+
+    # Kill an agent
+    client.kill(name="worker")
+```
+
+### Inter-Agent Communication
+
+```python
+# Agent A: Send a message
+client.register_name("orchestrator")
+client.send_message({"task": "process_data"}, to_name="worker")
+
+# Agent B: Receive messages
+messages = client.recv_messages()
+for msg in messages.messages:
+    print(f"From {msg.from_name}: {msg.message}")
+```
+
+### State Store
+
+```python
+# Store data (persists across agent restarts)
+client.store("config", {"model": "gpt-4", "temp": 0.7})
+
+# Fetch data
+result = client.fetch("config")
+if result.found:
+    print(result.value)
+```
+
+### LLM Integration
+
+Set your API key:
+```bash
+export GEMINI_API_KEY=your_key_here
+```
+
+```python
+with CloveClient() as client:
+    response = client.think("Explain quantum computing in one sentence")
+    print(response['content'])
 ```
 
 ---
 
-## Why Clove?
-
-Python frameworks (LangChain, CrewAI, AutoGen) run agents as threads/coroutines. One bad agent takes down everything.
-
-Clove runs agents as **real OS processes** with:
-
-| | Python Frameworks | Clove |
-|--|-------------------|-------|
-| Agent infinite loops | System hangs | Agent throttled |
-| Memory leak | OOM kills all | Only that agent killed |
-| Malicious code | Full access | Sandboxed |
-| 10 agents need LLM | Race conditions | External proxy/SDK can enforce fairness |
-| Agent crash | Corrupts shared state | Clean isolation |
-
----
-
-## How It Works
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Clove Kernel (C++23)                          │
-│  ┌─────────────┐  ┌─────────────────┐  ┌─────────────────────┐ │
-│  │   Reactor   │  │   Event Bus     │  │   Agent Manager     │ │
-│  │   (epoll)   │  │                 │  │   (Sandbox/Fork)    │ │
-│  └──────┬──────┘  └────────┬────────┘  └──────────┬──────────┘ │
-│         └──────────────────┼───────────────────────┘            │
-│                            │                                    │
-│              Unix Domain Socket (/tmp/clove.sock)               │
-└────────────────────────────┼────────────────────────────────────┘
-                             │
-        ┌────────────────────┼────────────────────┐
-   ┌────┴────┐          ┌────┴────┐          ┌────┴────┐
-   │ Agent 1 │          │ Agent 2 │          │ Agent 3 │
-   └─────────┘          └─────────┘          └─────────┘
-```
-
-- **Kernel** — C++23 event loop, manages agent lifecycle
-- **Agents** — Python processes, communicate via syscalls
-- **SDK** — `pip install clove-sdk`, connects to the runtime
-
----
-
-## Features
-
-| Feature | Description |
-|---------|-------------|
-| Process isolation | Linux namespaces (PID, NET, MNT, UTS) |
-| Resource limits | cgroups v2 (memory, CPU, PIDs) |
-| LLM integration | Gemini API, fair queuing across agents |
-| Permission system | Path validation, command filtering, domain whitelist |
-| Hot reload | Auto-restart crashed agents with backoff |
-| IPC | Inter-agent messaging (send/recv/broadcast) |
-| Event system | Pub/sub for agent lifecycle and custom events |
-| State store | Key-value storage with TTL and scopes (global/agent/session) |
-| Metrics | Per-agent CPU, memory, syscall counts |
-| World simulation | Virtual filesystems, network mocking, chaos injection |
-| Remote access | Relay server for cloud deployments |
-
----
-
-## Environment Variables
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `GEMINI_API_KEY` | For LLM | Google Gemini API key |
-
----
-
-## Docker Modes
+## Kernel Options
 
 ```bash
-# Run as a service (default)
-docker run -d --privileged -e GEMINI_API_KEY=xxx ghcr.io/anixd/clove
+./clove_kernel [OPTIONS]
 
-# Interactive shell with kernel running
-docker run --rm -it --privileged -e GEMINI_API_KEY=xxx ghcr.io/anixd/clove shell
+Options:
+  --socket PATH       Socket path (default: /tmp/clove.sock)
+  --no-sandbox        Disable Linux namespace isolation
+  --log-level LEVEL   Log level: debug, info, warn, error (default: info)
+```
 
-# Run the demo
-docker run --rm -it --privileged ghcr.io/anixd/clove demo
+---
+
+## Requirements
+
+| Component | Requirements |
+|-----------|--------------|
+| **Kernel** | Linux x86_64, Ubuntu 22.04+, GCC 12+ or Clang 15+ |
+| **SDK** | Python 3.10+, any platform |
+| **Full Sandboxing** | Root privileges, cgroups v2 |
+
+### Build Dependencies
+
+```bash
+# Ubuntu/Debian
+sudo apt install build-essential cmake libssl-dev pkg-config
+
+# Fedora
+sudo dnf install gcc-c++ cmake openssl-devel pkgconf-pkg-config
+```
+
+---
+
+## Project Structure
+
+```
+clove/
+├── src/                    # C++ kernel source
+│   ├── kernel/             # Core kernel (syscalls, router)
+│   ├── runtime/            # Agent lifecycle management
+│   ├── ipc/                # Wire protocol
+│   └── metrics/            # System metrics collection
+├── agents/
+│   ├── python_sdk/         # Python SDK (clove-sdk)
+│   └── llm_service/        # LLM integration service
+└── cli/                    # Command-line tools
 ```
 
 ---
@@ -167,17 +213,10 @@ docker run --rm -it --privileged ghcr.io/anixd/clove demo
 
 | Document | Description |
 |----------|-------------|
-| [Syscalls Reference](docs/syscalls.md) | All available syscalls |
-| [World Simulation](docs/world-simulation.md) | Virtual worlds for agent testing |
-| [Hot Reload](docs/hot-reload.md) | Auto-restart and recovery |
+| [System Design](SYSTEM_DESIGN.md) | Architecture and internals |
 | [Python SDK](agents/python_sdk/README.md) | Full SDK API reference |
 
 ---
-
-## Requirements
-
-- **Runtime:** Linux x86_64 (Ubuntu 22.04+), root for full isolation
-- **SDK:** Python 3.10+, any platform (connects to runtime)
 
 ## License
 

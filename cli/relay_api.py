@@ -7,7 +7,6 @@ Provides a Python client for the Relay Server's REST API.
 
 import aiohttp
 import asyncio
-import json
 from typing import Optional, Dict, Any, List
 from dataclasses import dataclass
 

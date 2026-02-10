@@ -1,15 +1,11 @@
-# Clove Python SDK
+# Clove SDK
 
-Python client library for communicating with the Clove kernel. LLM calls are handled locally via `agents/llm_service` (set `GEMINI_API_KEY`).
+Python client for the Clove kernel.
 
 ## Installation
 
 ```bash
-# SDK is included in the repo, just add to path
-export PYTHONPATH="/path/to/Clove/agents/python_sdk:$PYTHONPATH"
-
-# Or install as an editable package
-pip install -e agents/python_sdk
+pip install clove-sdk
 ```
 
 ## Quick Start
@@ -18,101 +14,49 @@ pip install -e agents/python_sdk
 from clove_sdk import CloveClient
 
 with CloveClient() as client:
-    # Echo test
-    result = client.noop("Hello Clove!")
-    print(result)
+    # Test connection
+    info = client.hello()
+    print(f"Connected to kernel v{info.version}")
 
-    # LLM query
-    response = client.think("Explain quantum computing in one sentence")
-    print(response['content'])
+    # Execute commands
+    result = client.exec("ls -la")
+    print(result.stdout)
+
+    # Read/write files
+    client.write_file("/tmp/test.txt", "Hello")
+    content = client.read_file("/tmp/test.txt")
+    print(content.content)
 ```
 
-## Files
+## API Reference
 
-| File | Description |
-|------|-------------|
-| `clove_sdk/client.py` | Core SDK - `CloveClient` class with syscalls |
-| `clove_sdk/llm_service.py` | Local LLM wrapper around `agents/llm_service` |
-| `clove_sdk/agentic.py` | Agentic loop framework - autonomous task execution |
-| `clove_sdk/fleet.py` | Fleet management - deploy agents to remote machines |
-| `clove_sdk/remote.py` | Remote agent SDK - run agents via relay server |
-
-## CloveClient API
-
-### Connection
+### Command Execution
 
 ```python
-client = CloveClient(socket_path='/tmp/clove.sock')
-client.connect()
-# ... use client ...
-client.disconnect()
+from clove_sdk import ExecResult
 
-# Or use context manager (recommended)
-with CloveClient() as client:
-    pass
-```
-
-### LLM
-
-```python
-# Basic
-response = client.think("What is 2+2?")
-
-# With options
-response = client.think(
-    prompt="Describe this image",
-    image={"data": base64_data, "mime_type": "image/jpeg"},
-    system_instruction="You are a helpful assistant",
-    thinking_level="medium",  # low, medium, high
-    temperature=0.7
-)
+result: ExecResult = client.exec("echo hello", timeout=30)
+# result.success, result.stdout, result.stderr, result.exit_code
 ```
 
 ### Agent Management
 
 ```python
-# Spawn
-agent = client.spawn(
+from clove_sdk import SpawnResult, AgentInfo
+
+# Spawn agent
+spawn: SpawnResult = client.spawn(
     name="worker",
-    script="/path/to/agent.py",
+    script="/path/to/worker.py",
     sandboxed=True,
-    limits={"memory": 256*1024*1024, "max_pids": 64}
+    limits={"memory": 256 * 1024 * 1024}
 )
 
-# List
-agents = client.list_agents()
+# List agents
+agents: list[AgentInfo] = client.list_agents()
 
-# Kill
+# Kill agent
 client.kill(name="worker")
-# or
-client.kill(agent_id=123)
-```
-
-### File Operations
-
-```python
-# Read
-result = client.read_file("/tmp/data.txt")
-content = result['content']
-
-# Write
-client.write_file("/tmp/output.txt", "Hello World")
-client.write_file("/tmp/log.txt", "New line\n", mode="append")
-```
-
-### Command Execution
-
-```python
-result = client.exec("ls -la /tmp")
-print(result['stdout'])
-print(result['exit_code'])
-```
-
-### HTTP Requests
-
-```python
-result = client.http("https://api.github.com/users/octocat")
-data = json.loads(result['body'])
 ```
 
 ### Inter-Agent Communication
@@ -121,214 +65,95 @@ data = json.loads(result['body'])
 # Register name
 client.register_name("orchestrator")
 
-# Send to specific agent
+# Send message
 client.send_message({"task": "process"}, to_name="worker")
 
 # Receive messages
 messages = client.recv_messages()
+for msg in messages.messages:
+    print(f"From {msg.from_name}: {msg.message}")
 
-# Broadcast to all
+# Broadcast
 client.broadcast({"event": "shutdown"})
 ```
 
-### Permissions
+### State Store
 
 ```python
-# Get current permissions
-perms = client.get_permissions()
+from clove_sdk import FetchResult
 
-# Set permissions (requires elevated privileges)
-client.set_permissions(level="sandboxed")
+# Store
+client.store("key", {"data": "value"}, scope="global")
+
+# Fetch
+result: FetchResult = client.fetch("key")
+if result.found:
+    print(result.value)
+
+# List keys
+keys = client.list_keys(prefix="user:")
 ```
 
 ### Metrics
 
 ```python
-# System metrics (CPU, memory, disk, network)
-metrics = client.get_system_metrics()
-print(f"CPU: {metrics['metrics']['cpu']['percent']}%")
-print(f"Memory: {metrics['metrics']['memory']['percent']}%")
+from clove_sdk import SystemMetrics, AgentMetrics
+
+# System metrics
+sys: SystemMetrics = client.get_system_metrics()
+print(f"CPU: {sys.cpu_percent}%")
 
 # Agent metrics
-agent_metrics = client.get_agent_metrics(agent_id=123)
-print(f"Process CPU: {agent_metrics['metrics']['process']['cpu']['percent']}%")
-
-# All agent metrics
-all_agents = client.get_all_agent_metrics()
-for agent in all_agents['agents']:
-    print(f"{agent['name']}: {agent['process']['cpu']['percent']}%")
-
-# Cgroup metrics (if sandboxed)
-cgroup = client.get_cgroup_metrics()
-if cgroup.get('success'):
-    print(f"Memory usage: {cgroup['metrics']['memory']['current']}")
+agent: AgentMetrics = client.get_agent_metrics(agent_id=1)
+print(f"Memory: {agent.memory_bytes} bytes")
 ```
 
-## Agentic Loop
+### LLM Integration
 
-For autonomous task execution with LLM reasoning:
-
-```python
-from agentic import run_task, AgenticLoop
-
-# Quick usage
-result = run_task("Create a Python script that prints Fibonacci numbers")
-
-# With more control
-with CloveClient() as client:
-    loop = AgenticLoop(client, max_iterations=20, verbose=True)
-    result = loop.run("Find all TODO comments in the codebase")
-    print(f"Completed in {result.iterations} iterations")
-    print(result.result)
+```bash
+export GEMINI_API_KEY=your_key
 ```
 
-### Built-in Tools
-
-| Tool | Description |
-|------|-------------|
-| `exec` | Execute shell commands |
-| `read_file` | Read file contents |
-| `write_file` | Write/create files |
-| `done` | Signal task completion |
-
-### Custom Tools
-
 ```python
-from agentic import AgenticLoop, Tool
-
-loop = AgenticLoop(client)
-
-# Add custom tool
-loop.add_tool(Tool(
-    name="search",
-    description="Search the web",
-    parameters={"type": "object", "properties": {"query": {"type": "string"}}},
-    handler=lambda args: {"results": do_search(args['query'])}
-))
+response = client.think("Explain quantum computing")
+print(response['content'])
 ```
 
-## Error Handling
+## Exception Handling
 
 ```python
-with CloveClient() as client:
-    result = client.think("Hello")
-
-    if not result.get('success'):
-        print(f"Error: {result.get('error')}")
-    else:
-        print(result['content'])
-```
-
-## Fleet Client
-
-For managing remote agent deployment across multiple machines.
-
-### Quick Start
-
-```python
-from fleet_client import FleetClient, SyncFleetClient
-
-# Async usage
-async def main():
-    fleet = FleetClient(relay_url="http://localhost:8766")
-
-    # List machines
-    machines = await fleet.list_machines()
-    for m in machines:
-        print(f"{m.machine_id}: {m.status}")
-
-    # Deploy agent
-    result = await fleet.deploy_agent(
-        "my_agent.py",
-        machine_id="docker-dev-abc123"
-    )
-
-    await fleet.close()
-
-# Sync usage
-fleet = SyncFleetClient(relay_url="http://localhost:8766")
-machines = fleet.list_machines()
-fleet.deploy_agent("my_agent.py", machine_id="docker-dev-abc123")
-```
-
-### FleetClient API
-
-```python
-# Machine operations
-machines = await fleet.list_machines()
-machine = await fleet.get_machine("machine-id")
-connected = await fleet.get_connected_machines()
-
-# Agent operations
-agents = await fleet.list_agents()
-agents = await fleet.list_agents(machine_id="m1")
-result = await fleet.deploy_agent("script.py", machine_id="m1")
-results = await fleet.run_on_all("health.py")
-await fleet.stop_agent(machine_id="m1", agent_id=42)
-
-# Fleet status
-status = await fleet.get_status()
-healthy = await fleet.health_check()
-```
-
-### Data Classes
-
-```python
-from fleet_client import Machine, Agent
-
-# Machine
-machine.machine_id      # "docker-dev-abc123"
-machine.provider        # "docker" | "aws" | "gcp"
-machine.status          # "connected" | "disconnected"
-machine.ip_address      # "172.17.0.2"
-machine.is_connected()  # True/False
-
-# Agent
-agent.agent_id          # 42
-agent.agent_name        # "my_agent"
-agent.target_machine    # "docker-dev-abc123"
-agent.status            # "running" | "stopped"
-agent.syscalls_sent     # 15
-```
-
-### Run on All Machines
-
-```python
-# Deploy to all connected machines
-results = await fleet.run_on_all("health_check.py")
-
-# With filtering
-results = await fleet.run_on_all(
-    "cleanup.py",
-    filter_fn=lambda m: m.provider == "docker"
+from clove_sdk import (
+    CloveError,       # Base exception
+    ConnectionError,  # Failed to connect
+    SyscallError,     # Syscall failed
+    AgentNotFound,    # Agent doesn't exist
 )
 
-for result in results:
-    print(f"{result['machine_id']}: {result['status']}")
+try:
+    client.kill(name="nonexistent")
+except AgentNotFound as e:
+    print(f"Not found: {e}")
 ```
 
-### Environment Variables
+## Architecture
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `RELAY_API_URL` | Relay server URL | `http://localhost:8766` |
-| `AGENTOS_API_TOKEN` | Auth token | (none) |
-
-## Remote Client
-
-For running agents that connect through the relay server.
-
-```python
-from remote_client import RemoteClove
-
-agent = RemoteClove(
-    name="my_agent",
-    relay_url="ws://relay.example.com:8765",
-    token="your_agent_token"
-)
-
-# Use like normal Clove
-agent.write("Hello from remote!")
-result = agent.think("What is 2+2?")
-agent.exit(0)
 ```
+clove_sdk/
+├── client.py       # CloveClient (main entry point)
+├── protocol.py     # Wire protocol, SyscallOp enum
+├── transport.py    # Socket communication
+├── models.py       # Response dataclasses (30+)
+├── exceptions.py   # Exception hierarchy
+└── mixins/         # Domain-specific operations
+    ├── agents.py
+    ├── filesystem.py
+    ├── ipc.py
+    ├── state.py
+    ├── events.py
+    └── metrics.py
+```
+
+## Requirements
+
+- Python 3.10+
+- Running Clove kernel (see main README)

@@ -223,7 +223,9 @@ int Sandbox::child_entry(void* arg) {
 
     // Wait for parent to set up cgroups
     char buf;
-    read(child_args->pipe_fd[0], &buf, 1);
+    if (read(child_args->pipe_fd[0], &buf, 1) < 0) {
+        spdlog::warn("Failed to read sync signal from parent: {}", strerror(errno));
+    }
     close(child_args->pipe_fd[0]);
 
     // Set hostname if UTS namespace is enabled
@@ -384,7 +386,9 @@ bool Sandbox::start(const std::string& command, const std::vector<std::string>& 
     }
 
     // Signal child to continue
-    write(pipe_fd[1], "x", 1);
+    if (write(pipe_fd[1], "x", 1) < 0) {
+        spdlog::warn("Failed to write sync signal to child: {}", strerror(errno));
+    }
     close(pipe_fd[1]);
 
     delete[] stack;

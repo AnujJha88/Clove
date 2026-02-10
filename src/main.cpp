@@ -1,7 +1,5 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
-#include <fmt/core.h>
-#include <fmt/color.h>
 #include "core/logger.hpp"
 #include "kernel/kernel.hpp"
 #include <iostream>

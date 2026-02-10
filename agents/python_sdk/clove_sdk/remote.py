@@ -7,12 +7,9 @@ Client library for connecting to a remote Clove kernel through a relay server.
 
 import json
 import base64
-import struct
 import asyncio
 import threading
-from typing import Optional, Dict, Any, Callable
-from dataclasses import dataclass
-from enum import IntEnum
+from typing import Optional, Dict
 from concurrent.futures import Future
 import queue
 
@@ -22,7 +19,7 @@ try:
 except ImportError:
     raise ImportError("websockets library required. Run: pip install clove-sdk[remote]")
 
-from .client import SyscallOp, Message, MAGIC_BYTES, HEADER_SIZE
+from .protocol import SyscallOp, Message
 
 
 class RemoteAgentClient:

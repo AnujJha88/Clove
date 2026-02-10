@@ -1,8 +1,8 @@
-# CLOVE System Design - C++ Kernel Documentation
+# Clove System Design
 
-> Comprehensive technical documentation explaining the CLOVE kernel architecture, component responsibilities, and code organization.
+Technical documentation for the Clove kernel architecture.
 
-Note: LLM calls were moved out of the kernel into the SDK (`agents/llm_service`). References to in-kernel LLM components below are historical.
+> **Note**: LLM calls are handled by the SDK via `agents/llm_service`, not the kernel directly.
 
 ---
 

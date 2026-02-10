@@ -5,8 +5,6 @@ Local LLM service wrapper for the SDK.
 Runs agents/llm_service/llm_service.py as a long-lived subprocess and returns JSON output.
 """
 
-from __future__ import annotations
-
 import json
 import os
 import sys
