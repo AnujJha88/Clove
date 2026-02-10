@@ -72,9 +72,9 @@ wheels/
 MANIFEST
 .pytest_cache/
 
-# Core dumps
-core
-core.*
+# Core dumps (use pattern to avoid matching src/core/)
+/core
+core.[0-9]*
 
 # Socket files
 *.sock
