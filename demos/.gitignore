@@ -1,0 +1,33 @@
+# Artifacts and outputs
+*/artifacts/
+*/logs/
+*/results/
+*/outputs/
+*/checkpoints/
+*/reports/
+*/benchmark_results/
+*/benchmark_comparison/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+
+# Environment
+.env
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
