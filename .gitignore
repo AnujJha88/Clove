@@ -112,6 +112,8 @@ demo/drug_research_pipeline/data/*_full.tab
 .venv/
 venv/
 ENV/
+clove_env/
+*_env/
 
 # Editor directories and files
 .idea
